@@ -1,0 +1,23 @@
+{
+  "name": "entu-plugins",
+  "private": true,
+  "description": "Entu Plugins",
+  "author": "Argo Roots <argo@roots.ee>",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "start": "node .output/server/index.mjs",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "cleanup": "nuxt cleanup"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "devDependencies": {
+    "nuxt": "3.11.2"
+  }
+}
