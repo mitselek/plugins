@@ -3,5 +3,5 @@
 </script>
 
 <template>
-  <nuxt-page />
+  <h1>CSV</h1>
 </template>

@@ -3,5 +3,5 @@
 </script>
 
 <template>
-  <nuxt-page />
+  <h1>ESTER</h1>
 </template>

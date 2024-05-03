@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#__nuxt {
+  @apply size-full;
+  @apply overflow-hidden;
+  @apply antialiased;
+}
+
+a.link {
+  @apply text-sky-800;
+  @apply hover:underline;
+}
