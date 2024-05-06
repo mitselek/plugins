@@ -73,7 +73,9 @@ async function addEsterItem (item) {
     return
   }
 
-  await navigateTo(`${runtimeConfig.public.entuUrl}/${query.account}/entity/${result._id}`, { external: true, open: { target: '_top' } })
+  const { _id } = await result.json()
+
+  await navigateTo(`${runtimeConfig.public.entuUrl}/${query.account}/entity/${_id}#edit`, { external: true, open: { target: '_top' } })
 }
 
 function convertType (type) {
