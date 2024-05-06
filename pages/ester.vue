@@ -1,14 +1,14 @@
 <script setup>
-import { NButton, NInput, NInputGroup, NTable } from 'naive-ui'
+import { NButton, NInput, NInputGroup, NSpin, NTable } from 'naive-ui'
 
 const { query } = useRoute()
-const router = useRouter()
 const runtimeConfig = useRuntimeConfig()
 
 const error = ref(null)
 const queryString = ref('')
-const isLoading = ref(false)
 const esterItems = ref([])
+const isLoading = ref(false)
+const isAdding = ref(false)
 
 async function doSearch () {
   if (isLoading.value || !queryString.value) return
@@ -36,6 +36,8 @@ async function addEsterItem (item) {
   if (!query.account) return
   if (!query.type) return
   if (!query.token) return
+
+  isAdding.value = true
 
   const properties = [
     { type: '_type', reference: query.type }
@@ -114,9 +116,17 @@ onMounted(() => {
   >
     {{ error }}
   </div>
+
+  <div
+    v-else-if="isAdding"
+    class="h-full max-h-full flex justify-center items-center"
+  >
+    <n-spin show />
+  </div>
+
   <div
     v-else
-    class="h-full max-h-full pt-6 mx-auto flex flex-col gap-6"
+    class="h-full max-h-full pt-6 flex flex-col gap-6"
   >
     <n-input-group class="max-w-80 mx-auto">
       <n-input
