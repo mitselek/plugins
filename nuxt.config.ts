@@ -8,6 +8,12 @@ export default defineNuxtConfig({
       autoprefixer: {}
     }
   },
+  runtimeConfig: {
+    public: {
+      apiUrl: '',
+      esterUrl: ''
+    }
+  },
   spaLoadingTemplate: false,
   ssr: false
 })
