@@ -35,6 +35,7 @@ async function doSearch () {
 async function addEsterItem (item) {
   if (!query.account) return
   if (!query.type) return
+  if (!query.token) return
 
   const properties = [
     { type: '_type', reference: query.type }
@@ -56,6 +57,7 @@ async function addEsterItem (item) {
   const result = await fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity`, {
     method: 'POST',
     headers: {
+      Authorization: `Bearer ${query.token}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(properties)
@@ -89,12 +91,16 @@ function convertType (type) {
 
 onMounted(() => {
   if (!query.account) {
-    error.value = 'No account specified!'
+    error.value = 'No account parameter!'
     return
   }
 
   if (!query.type) {
-    error.value = 'No type specified!'
+    error.value = 'No type parameter!'
+  }
+
+  if (!query.token) {
+    error.value = 'No token parameter!'
   }
 })
 </script>
