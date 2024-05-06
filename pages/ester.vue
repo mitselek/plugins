@@ -1,7 +1,11 @@
 <script setup>
 import { NButton, NInput, NInputGroup, NTable } from 'naive-ui'
 
+const { query } = useRoute()
+const router = useRouter()
 const runtimeConfig = useRuntimeConfig()
+
+const error = ref(null)
 const queryString = ref('')
 const isLoading = ref(false)
 const esterItems = ref([])
@@ -29,12 +33,83 @@ async function doSearch () {
 }
 
 async function addEsterItem (item) {
-  console.log('Adding ESTER item', item)
+  if (!query.account) return
+  if (!query.type) return
+
+  const properties = [
+    { type: '_type', reference: query.type }
+  ]
+
+  if (query.parent) {
+    properties.push({ type: '_parent', reference: query.parent })
+  }
+
+  for (const [key, value] of Object.entries(item)) {
+    for (const i of value) {
+      properties.push({
+        type: convertType(key),
+        string: i
+      })
+    }
+  }
+
+  const result = await fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(properties)
+  })
+
+  if (!result.ok) {
+    error.value = 'Failed to add entity!'
+
+    setTimeout(() => {
+      error.value = null
+    }, 3000)
+
+    return
+  }
+
+  await navigateTo(`${runtimeConfig.public.entuUrl}/${query.account}/entity/${result._id}`, { external: true, open: { target: '_top' } })
 }
+
+function convertType (type) {
+  switch (type) {
+    case 'title':
+      return 'name'
+    case 'isbn':
+      return 'isn'
+    case 'issn':
+      return 'isn'
+    default:
+      return type.replaceAll('-', '_')
+  }
+}
+
+onMounted(() => {
+  if (!query.account) {
+    error.value = 'No account specified!'
+    return
+  }
+
+  if (!query.type) {
+    error.value = 'No type specified!'
+  }
+})
 </script>
 
 <template>
-  <div class="h-full max-h-full pt-6 mx-auto flex flex-col gap-6">
+  <div
+    v-if="error"
+    class="h-full max-h-full flex justify-center items-center text-red-700 font-bold"
+  >
+    {{ error }}
+  </div>
+  <div
+    v-else
+    class="h-full max-h-full pt-6 mx-auto flex flex-col gap-6"
+  >
     <n-input-group class="max-w-80 mx-auto">
       <n-input
         v-model:value="queryString"
