@@ -6,6 +6,7 @@ import { NButton, NForm, NFormItem, NInputNumber, NUpload, NUploadDragger, NSele
 const { locale, t } = useI18n()
 const { query } = useRoute()
 
+const error = ref()
 const csvContent = ref()
 const file = ref()
 const encoding = ref('utf-8')
@@ -79,11 +80,34 @@ onMounted(() => {
   if (query.locale) {
     locale.value = query.locale
   }
+
+  if (!query.account) {
+    error.value = t('errorNoAccount')
+    return
+  }
+
+  if (!query.type) {
+    error.value = t('errorNoType')
+  }
+
+  if (!query.token) {
+    error.value = t('errorNoToken')
+  }
 })
 </script>
 
 <template>
-  <div class="h-full max-h-full p-6 flex flex-col gap-6 overflow-auto">
+  <div
+    v-if="error"
+    class="h-full max-h-full flex justify-center items-center text-red-700 font-bold"
+  >
+    {{ error }}
+  </div>
+
+  <div
+    v-else
+    class="h-full max-h-full p-6 flex flex-col gap-6 overflow-auto"
+  >
     <n-upload
       v-if="!importing"
       :custom-request="csvUpload"
@@ -211,6 +235,9 @@ onMounted(() => {
 
 <i18n lang="yaml">
   en:
+    errorNoAccount: No account parameter!
+    errorNoType: No type parameter!
+    errorNoToken: No token parameter!
     uploadText: Click or drag a CSV file to this area to upload.
     encoding: Encoding
     encodingInfo: If you see strange characters in the table below, try changing the file encoding.
@@ -219,6 +246,9 @@ onMounted(() => {
     fieldInfo: Choose which column corresponds to which data field.
     import: Import | Import {n} rows | Import {n} rows
   et:
+    errorNoAccount: Puudub parameeter "account"!
+    errorNoType: Puudub parameeter "type"!
+    errorNoToken: Puudub parameeter "token"!
     uploadText: Lohista CSV fail siia või klõpsa siin, et fail valida.
     encoding: Faili kodeering
     encodingInfo: Kui näed allpool olevas tabelis veidraid märke, proovi muuta faili kodeeringut.
