@@ -5,19 +5,18 @@ import { NButton, NForm, NFormItem, NInputNumber, NUpload, NUploadDragger, NSele
 
 const { locale, t } = useI18n()
 const { query } = useRoute()
+const runtimeConfig = useRuntimeConfig()
 
 const error = ref()
 const csvContent = ref()
 const file = ref()
 const encoding = ref('utf-8')
-const encodingsOptions = [
+const encodingOptions = [
   { value: 'utf-8', label: 'UTF-8' },
   { value: 'windows-1257', label: 'Windows-1257' }
 ]
-const fieldOptions = ref([
-  { value: '', label: '' }
-])
-const fields = ref([])
+const propertyOptions = ref([])
+const selectedProperties = ref([])
 const skipLines = ref(0)
 const importing = ref(false)
 
@@ -49,6 +48,37 @@ watch([file, encoding, skipLines], ([fileValue, encodingValue, skipLinesValue]) 
 
   reader.readAsText(fileValue, encodingValue)
 })
+
+async function getTypes () {
+  const params = new URLSearchParams({
+    '_parent.reference': query.type,
+    '_type.string': 'property',
+    props: ['name', 'label', 'ordinal'].join(',')
+  })
+  const result = await fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity?${params.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${query.token}`
+    }
+  })
+
+  if (!result.ok) {
+    console.error('Failed to fetch types')
+    return
+  }
+
+  const { entities } = await result.json()
+
+  if (!entities.length) {
+    console.error('No types')
+    return
+  }
+
+  propertyOptions.value = entities.map(x => ({
+    value: getValue(x.name, locale.value),
+    label: getValue(x.label, locale.value),
+    ordinal: getValue(x.ordinal, locale.value, 'number')
+  })).sort((a, b) => a.ordinal - b.ordinal)
+}
 
 function csvUpload (data) {
   file.value = data.file?.file
@@ -93,6 +123,8 @@ onMounted(() => {
   if (!query.token) {
     error.value = t('errorNoToken')
   }
+
+  getTypes()
 })
 </script>
 
@@ -143,7 +175,7 @@ onMounted(() => {
           <n-select
             v-model:value="encoding"
             class="w-full"
-            :options="encodingsOptions"
+            :options="encodingOptions"
           />
           <p class="mt-1 text-sm text-gray-500">
             {{ t('encodingInfo') }}
@@ -190,10 +222,11 @@ onMounted(() => {
             :title="column"
           >
             <n-select
-              v-model:value="fields[index]"
+              v-model:value="selectedProperties[index]"
               class="w-full"
               clearable
-              :options="fieldOptions"
+              searchable
+              :options="propertyOptions"
             />
           </th>
         </tr>
@@ -218,7 +251,7 @@ onMounted(() => {
         v-if="csvContent?.length && !importing"
         class="block"
         type="primary"
-        :disabled="!fields.some(Boolean)"
+        :disabled="!selectedProperties.some(Boolean)"
         @click="doImport()"
       >
         {{ t('import', csvContent?.length || 0) }}

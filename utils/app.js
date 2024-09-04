@@ -71,3 +71,7 @@ export const themeOverrides = {
     fillColorHover: '#DBDBDF'
   }
 }
+
+export function getValue (valueList = [], locale, type = 'string') {
+  return valueList.find(x => x.language === locale)?.[type] || valueList.find(x => !x.language)?.[type] || valueList?.at(0)?.[type]
+}
