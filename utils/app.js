@@ -2,7 +2,9 @@ export const themeOverrides = {
   common: {
     fontFamily: 'Avenir, "Helvetica Neue", Helvetica, Arial, sans-serif',
     fontSize: '16px',
-    primaryColor: '#1E434C'
+    primaryColor: '#1E434C',
+    primaryColorHover: '#162E35',
+    primaryColorPressed: '#0F2027'
   },
   Collapse: {
     dividerColor: '#FFFFFF'
