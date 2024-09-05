@@ -1,7 +1,7 @@
 <script setup>
 import jschardet from 'jschardet'
 import { parse } from 'papaparse'
-import { NButton, NForm, NFormItem, NInputNumber, NUpload, NUploadDragger, NSelect, NSpin, NTable } from 'naive-ui'
+import { NButton, NCheckbox, NForm, NFormItem, NSelect, NSpin, NUpload, NUploadDragger } from 'naive-ui'
 
 const { locale, t } = useI18n()
 const { query } = useRoute()
@@ -54,9 +54,18 @@ const encodingOptions = [
 ]
 const propertyOptions = ref([])
 const selectedProperties = ref([])
-const skipLines = ref(0)
 const importing = ref(false)
 
+const allChecked = computed({
+  get: () => {
+    return csvContent.value?.every(x => x.selected)
+  },
+  set: (value) => {
+    csvContent.value?.filter(x => !x._id)?.forEach((x) => { x.selected = value })
+  }
+})
+
+const someChecked = computed(() => csvContent.value?.filter(x => !x._id)?.some(x => x.selected) && !allChecked.value)
 watch(file, (value) => {
   if (!value) return
 
@@ -70,14 +79,16 @@ watch(file, (value) => {
   reader.readAsArrayBuffer(value)
 })
 
-watch([file, encoding, skipLines], ([fileValue, encodingValue, skipLinesValue]) => {
+const checkedCount = computed(() => csvContent.value?.filter(x => !x._id).filter(x => x.selected)?.length || 0)
+
+watch([file, encoding], ([fileValue, encodingValue]) => {
   if (!fileValue) return
 
   const reader = new FileReader()
 
   reader.onload = (e) => {
     parse(e.target.result, {
-      complete: ({ data }) => { parseCsv(data, skipLinesValue) },
+      complete: ({ data }) => { parseCsv(data) },
       dynamicTyping: true,
       skipEmptyLines: 'greedy'
     })
@@ -90,7 +101,7 @@ async function getTypes () {
   const params = new URLSearchParams({
     '_parent.reference': query.type,
     '_type.string': 'property',
-    props: ['name', 'label', 'ordinal'].join(',')
+    props: ['name', 'label', 'type', 'ordinal'].join(',')
   })
   const result = await fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity?${params.toString()}`, {
     headers: {
@@ -113,6 +124,7 @@ async function getTypes () {
   propertyOptions.value = entities.map(x => ({
     value: getValue(x.name, locale.value),
     label: getValue(x.label, locale.value),
+    type: getValue(x.type, locale.value),
     ordinal: getValue(x.ordinal, locale.value, 'number')
   })).sort((a, b) => a.ordinal - b.ordinal)
 }
@@ -121,26 +133,101 @@ function csvUpload (data) {
   file.value = data.file?.file
 }
 
-function parseCsv (data, skipLines) {
-  const rows = data.slice(skipLines)
-  const colsCount = Math.max(...rows.map(x => x.length))
+function parseCsv (data) {
+  const colsCount = Math.max(...data.map(x => x.length))
   const dataCols = []
 
   for (let i = 0; i < colsCount; i++) {
-    if (rows.map(x => x[i]).some(Boolean)) {
+    if (data.map(x => x[i]).some(Boolean)) {
       dataCols.push(i)
     }
   }
 
-  csvContent.value = rows.map(x => dataCols.map(i => x[i]))
+  csvContent.value = data.map(x => ({
+    selected: true,
+    data: dataCols.map(i => x[i])
+  }))
 }
 
-function doImport () {
+function convertValue (datatype, value) {
+  switch (datatype) {
+    case 'boolean':
+      return !!value
+    case 'date':
+      return new Date(value).toISOString()
+    case 'datetime':
+      return new Date(value).toISOString()
+    case 'string':
+      return `${value}`
+    case 'reference':
+      return `${value}`
+    default:
+      return value
+  }
+}
+
+async function doImport () {
   importing.value = true
 
-  setTimeout(() => {
-    importing.value = false
-  }, 10000)
+  const entities = []
+
+  csvContent.value.forEach((row, index) => {
+    if (row._id) return
+    if (!row.selected) return
+
+    const properties = [
+      { type: '_type', reference: query.type }
+    ]
+
+    if (query.parent) {
+      properties.push({ type: '_parent', reference: query.parent })
+    }
+
+    row.data.forEach((value, i) => {
+      const property = selectedProperties.value[i]
+
+      if (!property) return
+
+      const datatype = propertyOptions.value.find(x => x.value === property)?.type
+
+      if (!datatype) return
+
+      if (value === null || value === undefined) return
+
+      properties.push({ type: property, [datatype]: convertValue(datatype, value) })
+    })
+
+    entities.push({ index, properties })
+  })
+
+  for (let i = 0; i < entities.length; i++) {
+    const entity = entities[i]
+
+    const result = await fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${query.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(entity.properties)
+    })
+
+    if (!result.ok) {
+      error.value = 'Failed to add entity!'
+
+      setTimeout(() => {
+        error.value = null
+      }, 3000)
+
+      return
+    }
+
+    const { _id } = await result.json()
+
+    csvContent.value[entity.index]._id = _id
+  }
+
+  importing.value = false
 }
 
 onMounted(() => {
@@ -183,7 +270,7 @@ onMounted(() => {
       :show-file-list="false"
     >
       <n-upload-dragger
-        class="flex flex-col justify-center items-center gap-"
+        class="flex flex-col justify-center items-center gap-2 rounded-none"
         :class="{ 'h-96': !file }"
       >
         {{ t('uploadText') }}
@@ -197,65 +284,31 @@ onMounted(() => {
       </n-upload-dragger>
     </n-upload>
 
-    <n-form
-      v-if="file && !importing"
-      class="flex flex-col gap-6"
-      label-placement="left"
-      label-width="auto"
-      :show-feedback="false"
-    >
-      <n-form-item
-        class="m-0"
-        :label="t('encoding')"
-      >
-        <div class="w-full">
-          <n-select
-            v-model:value="encoding"
-            class="w-full"
-            :options="encodingOptions"
-          />
-          <p class="mt-1 text-sm text-gray-500">
-            {{ t('encodingInfo') }}
-          </p>
-        </div>
-      </n-form-item>
-
-      <n-form-item
-        class="m-0"
-        :label="t('skipLines')"
-      >
-        <div class="w-full">
-          <n-input-number
-            v-model:value="skipLines"
-            class="w-full"
-            :min="0"
-            :step="1"
-          />
-          <p class="mt-1 text-sm text-gray-500">
-            {{ t('skipLinesInfo') }}
-          </p>
-        </div>
-      </n-form-item>
-    </n-form>
-
-    <n-table
+    <table
       v-if="csvContent"
-      :bordered="false"
-      :bottom-bordered="false"
+      class="w-full"
     >
       <thead v-if="!importing">
         <tr>
           <th
-            class="!pb-0 text-sm !text-center text-gray-500 !font-normal !border-0"
-            :colspan="csvContent.at(0).length"
+            class="p-3 pb-1 text-center font-normal"
+            :colspan="csvContent.at(0).data.length + 1"
           >
             {{ t('fieldInfo') }}
           </th>
         </tr>
+
         <tr>
+          <th class="p-3 text-left bg-gray-100">
+            <n-checkbox
+              v-model:checked="allChecked"
+              :indeterminate="someChecked"
+            />
+          </th>
           <th
-            v-for="(column, index) in csvContent.at(0)"
+            v-for="(column, index) in csvContent.at(0).data"
             :key="index"
+            class="p-3 text-left bg-gray-100"
             :title="column"
           >
             <n-select
@@ -268,30 +321,52 @@ onMounted(() => {
           </th>
         </tr>
       </thead>
+
       <tbody>
         <tr
           v-for="(row, rowIndex) in csvContent"
           :key="rowIndex"
+          class="group border-t border-gray-200 hover:bg-gray-50"
         >
+          <td class="p-3">
+            <n-checkbox
+              v-model:checked="row.selected"
+              :disabled="!!row._id"
+            />
+          </td>
           <td
-            v-for="(column, columnIndex) in row"
+            v-for="(column, columnIndex) in row.data"
             :key="columnIndex"
+            class="p-3 text-sm"
           >
             {{ column }}
           </td>
         </tr>
       </tbody>
-    </n-table>
+    </table>
+
+    <n-form
+      v-if="file && !importing"
+      :show-feedback="false"
+    >
+      <n-form-item :label="t('encoding')">
+        <n-select
+          v-model:value="encoding"
+          filterable
+          :options="encodingOptions"
+        />
+      </n-form-item>
+    </n-form>
 
     <div class="w-full flex justify-center">
       <n-button
         v-if="csvContent?.length && !importing"
         class="block"
         type="primary"
-        :disabled="!selectedProperties.some(Boolean)"
+        :disabled="checkedCount === 0"
         @click="doImport()"
       >
-        {{ t('import', csvContent?.length || 0) }}
+        {{ t('import', checkedCount || 0) }}
       </n-button>
       <div
         v-else-if="importing"
@@ -309,21 +384,15 @@ onMounted(() => {
     errorNoType: No type parameter!
     errorNoToken: No token parameter!
     uploadText: Click or drag a CSV file to this area to upload.
-    encoding: Encoding
-    encodingInfo: If you see strange characters in the table below, try changing the file encoding.
-    skipLines: Skip first lines
-    skipLinesInfo: If the CSV file has headers, skip those lines.
-    fieldInfo: Choose which column corresponds to which data field.
+    encoding: 'Encoding (if you see strange characters in the table, try changing the file encoding):'
+    fieldInfo: Choose which rows to import and what column corresponds to which property.
     import: Import | Import {n} rows | Import {n} rows
   et:
     errorNoAccount: Puudub parameeter "account"!
     errorNoType: Puudub parameeter "type"!
     errorNoToken: Puudub parameeter "token"!
     uploadText: Lohista CSV fail siia või klõpsa siin, et fail valida.
-    encoding: Faili kodeering
-    encodingInfo: Kui näed allpool olevas tabelis veidraid märke, proovi muuta faili kodeeringut.
-    skipLines: Jäta esimesed read vahele
-    skipLinesInfo: Kui CSV failis on päiseid, siis jäta need read vahele.
-    fieldInfo: Vali mis veerg millise andmeväljaga seostub.
+    encoding: 'Faili kodeering (kui tabeli tekstis on veidrad märgid, proovi muuta faili kodeeringut):'
+    fieldInfo: Vali mis read importida ja milline veerg vastab millisele parameetrile.
     import: Impordi | Impordi {n} rida | Impordi {n} rida
 </i18n>
