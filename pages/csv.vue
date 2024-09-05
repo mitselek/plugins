@@ -337,9 +337,23 @@ onMounted(() => {
           <td
             v-for="(column, columnIndex) in row.data"
             :key="columnIndex"
-            class="p-3 text-sm"
+            class="text-sm"
           >
-            {{ column }}
+            <nuxt-link
+              v-if="row._id"
+              class="block w-full p-3 text-green-700"
+              :to="`${runtimeConfig.public.entuUrl}/${query.account}/${row._id}#edit`"
+              target="_blank"
+            >
+              {{ column }}
+            </nuxt-link>
+
+            <div
+              v-else
+              class="block w-full p-3"
+            >
+              {{ column }}
+            </div>
           </td>
         </tr>
       </tbody>
@@ -368,6 +382,7 @@ onMounted(() => {
       >
         {{ t('import', checkedCount || 0) }}
       </n-button>
+
       <div
         v-else-if="importing"
         class="h-full max-h-full flex justify-center items-center"
