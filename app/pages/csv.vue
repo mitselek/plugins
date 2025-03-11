@@ -58,14 +58,16 @@ const importing = ref(false)
 
 const allChecked = computed({
   get: () => {
-    return csvContent.value?.every(x => x.selected)
+    return csvContent.value?.every((x) => x.selected)
   },
   set: (value) => {
-    csvContent.value?.filter(x => !x._id)?.forEach((x) => { x.selected = value })
+    csvContent.value
+      ?.filter((x) => !x._id)
+      ?.forEach((x) => { x.selected = value })
   }
 })
 
-const someChecked = computed(() => csvContent.value?.filter(x => !x._id)?.some(x => x.selected) && !allChecked.value)
+const someChecked = computed(() => csvContent.value?.filter((x) => !x._id)?.some((x) => x.selected) && !allChecked.value)
 watch(file, (value) => {
   if (!value) return
 
@@ -79,7 +81,7 @@ watch(file, (value) => {
   reader.readAsArrayBuffer(value)
 })
 
-const checkedCount = computed(() => csvContent.value?.filter(x => !x._id).filter(x => x.selected)?.length || 0)
+const checkedCount = computed(() => csvContent.value?.filter((x) => !x._id).filter((x) => x.selected)?.length || 0)
 
 watch([file, encoding], ([fileValue, encodingValue]) => {
   if (!fileValue) return
@@ -123,7 +125,7 @@ async function getTypes () {
     return
   }
 
-  propertyOptions.value = entities.map(x => ({
+  propertyOptions.value = entities.map((x) => ({
     value: getValue(x.name, locale.value),
     label: getValue(x.label, locale.value),
     type: getValue(x.type, locale.value),
@@ -136,18 +138,18 @@ function csvUpload (data) {
 }
 
 function parseCsv (data) {
-  const colsCount = Math.max(...data.map(x => x.length))
+  const colsCount = Math.max(...data.map((x) => x.length))
   const dataCols = []
 
   for (let i = 0; i < colsCount; i++) {
-    if (data.map(x => x[i]).some(Boolean)) {
+    if (data.map((x) => x[i]).some(Boolean)) {
       dataCols.push(i)
     }
   }
 
-  csvContent.value = data.map(x => ({
+  csvContent.value = data.map((x) => ({
     selected: true,
-    data: dataCols.map(i => x[i])
+    data: dataCols.map((i) => x[i])
   }))
 }
 
@@ -190,7 +192,7 @@ async function doImport () {
 
       if (!property) return
 
-      const datatype = propertyOptions.value.find(x => x.value === property)?.type
+      const datatype = propertyOptions.value.find((x) => x.value === property)?.type
 
       if (!datatype) return
 
@@ -257,14 +259,14 @@ onMounted(() => {
 <template>
   <div
     v-if="error"
-    class="h-full max-h-full flex justify-center items-center text-red-700 font-bold"
+    class="flex h-full max-h-full items-center justify-center font-bold text-red-700"
   >
     {{ error }}
   </div>
 
   <div
     v-else
-    class="h-full max-h-full p-6 flex flex-col gap-6 overflow-auto"
+    class="flex h-full max-h-full flex-col gap-6 overflow-auto p-6"
   >
     <n-upload
       v-if="!importing"
@@ -272,7 +274,7 @@ onMounted(() => {
       :show-file-list="false"
     >
       <n-upload-dragger
-        class="flex flex-col justify-center items-center gap-2 rounded-none"
+        class="flex flex-col items-center justify-center gap-2 rounded-none"
         :class="{ 'h-96': !file }"
       >
         {{ t('uploadText') }}
@@ -301,7 +303,7 @@ onMounted(() => {
         </tr>
 
         <tr>
-          <th class="p-3 text-left bg-gray-100">
+          <th class="bg-gray-100 p-3 text-left">
             <n-checkbox
               v-model:checked="allChecked"
               :indeterminate="someChecked"
@@ -310,7 +312,7 @@ onMounted(() => {
           <th
             v-for="(column, index) in csvContent.at(0).data"
             :key="index"
-            class="p-3 text-left bg-gray-100"
+            class="bg-gray-100 p-3 text-left"
             :title="column"
           >
             <n-select
@@ -374,7 +376,7 @@ onMounted(() => {
       </n-form-item>
     </n-form>
 
-    <div class="w-full flex justify-center">
+    <div class="flex w-full justify-center">
       <n-button
         v-if="csvContent?.length && !importing"
         class="block"
@@ -387,7 +389,7 @@ onMounted(() => {
 
       <div
         v-else-if="importing"
-        class="h-full max-h-full flex justify-center items-center"
+        class="flex h-full max-h-full items-center justify-center"
       >
         <n-spin show />
       </div>

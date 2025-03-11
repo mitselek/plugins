@@ -1,33 +1,33 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  compatibilityDate: '2024-09-04',
-  devtools: { enabled: false },
-  eslint: {
-    config: {
-      autoInit: false,
-      stylistic: true
-    }
-  },
-  future: {
-    compatibilityVersion: 4
-  },
-  i18n: {
-    vueI18n: '~~/.config/i18n.config.ts'
-  },
   modules: [
     '@nuxt/eslint',
     '@nuxtjs/i18n',
     '@nuxtjs/tailwindcss',
     '@vueuse/nuxt'
   ],
+  ssr: false,
+  devtools: { enabled: false },
+  spaLoadingTemplate: false,
   runtimeConfig: {
     public: {
       entuUrl: '',
       esterUrl: ''
     }
   },
-  spaLoadingTemplate: false,
-  ssr: false,
+  future: {
+    compatibilityVersion: 4
+  },
+  compatibilityDate: '2024-09-04',
+  eslint: {
+    config: {
+      autoInit: false,
+      stylistic: true
+    }
+  },
+  i18n: {
+    vueI18n: '~~/.config/i18n.config.ts'
+  },
   tailwindcss: {
     cssPath: '~/assets/tailwind.css',
     configPath: '~~/.config/tailwind.config.ts'

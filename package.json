@@ -4,6 +4,7 @@
   "description": "Entu Plugins",
   "author": "Argo Roots <argo@roots.ee>",
   "license": "MIT",
+  "type": "module",
   "scripts": {
     "lint": "eslint . --fix --config .config/eslint.config.js",
     "dev": "nuxt dev",

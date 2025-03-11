@@ -112,23 +112,23 @@ onMounted(() => {
 <template>
   <div
     v-if="error"
-    class="h-full max-h-full flex justify-center items-center text-red-700 font-bold"
+    class="flex h-full max-h-full items-center justify-center font-bold text-red-700"
   >
     {{ error }}
   </div>
 
   <div
     v-else-if="isAdding"
-    class="h-full max-h-full flex justify-center items-center"
+    class="flex h-full max-h-full items-center justify-center"
   >
     <n-spin show />
   </div>
 
   <div
     v-else
-    class="h-full max-h-full pt-6 flex flex-col gap-6"
+    class="flex h-full max-h-full flex-col gap-6 pt-6"
   >
-    <n-input-group class="max-w-80 mx-auto">
+    <n-input-group class="mx-auto max-w-80">
       <n-input
         v-model:value="queryString"
         autofocus
@@ -160,7 +160,7 @@ onMounted(() => {
             v-for="item in esterItems"
             :key="item['ester-id']"
           >
-            <td class="flex justify-between items-center gap-2">
+            <td class="flex items-center justify-between gap-2">
               <div>
                 <div class="font-bold">
                   {{ item.title?.join(', ') }}

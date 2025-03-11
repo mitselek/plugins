@@ -5,7 +5,7 @@ defineProps({
 </script>
 
 <template>
-  <div class="size-full flex items-center justify-center text-xl">
+  <div class="flex size-full items-center justify-center text-xl">
     {{ error.message }}
   </div>
 </template>
