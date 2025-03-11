@@ -9,10 +9,11 @@ export default defineI18nConfig(() => ({
       datetime: { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }
     }
   },
-  defaultLocale: 'en',
+  detectBrowserLanguage: {
+    useCookie: false
+  },
   fallbackWarn: false,
   missingWarn: false,
   legacy: false,
-  locale: 'en',
   strategy: 'no_prefix'
 }))
