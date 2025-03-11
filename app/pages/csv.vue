@@ -101,6 +101,8 @@ async function getTypes () {
   const params = new URLSearchParams({
     '_parent.reference': query.type,
     '_type.string': 'property',
+    'formula._id.exists': false,
+    'readonly._id.exists': false,
     props: ['name', 'label', 'type', 'ordinal'].join(',')
   })
   const result = await fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity?${params.toString()}`, {
