@@ -319,7 +319,6 @@ onMounted(() => {
               v-model:value="selectedProperties[index]"
               class="w-full"
               clearable
-              searchable
               :options="propertyOptions"
             />
           </th>

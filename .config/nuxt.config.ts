@@ -11,8 +11,8 @@ export default defineNuxtConfig({
   spaLoadingTemplate: false,
   runtimeConfig: {
     public: {
-      entuKey: '',
       entuUrl: '',
+      entuKey: '',
       esterUrl: ''
     }
   },
