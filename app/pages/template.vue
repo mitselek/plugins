@@ -10,14 +10,22 @@ const importing = ref(false)
 const templateUser = ref()
 const templateEntities = ref([])
 const templateProperties = ref([])
-const selectedTemplateEntityId = ref()
 const newType = ref()
 const parentType = ref()
+const existingTypes = ref()
+const selectedTemplateEntityId = ref()
 
-const templateEntitiesOptions = computed(() => templateEntities.value?.map((x) => ({
-  label: x.label,
-  value: x._id
-})))
+const templateEntitiesOptions = computed(() => {
+  const result = templateEntities.value?.map((x) => ({
+    label: x.label,
+    value: x._id,
+    disabled: existingTypes.value?.includes(x._type)
+  }))
+
+  result.sort((a, b) => a.label.localeCompare(b.label))
+
+  return result
+})
 
 const allChecked = computed({
   get: () => {
@@ -34,6 +42,8 @@ const someChecked = computed(() => templateProperties.value?.filter((x) => !x.ne
 
 const checkedCount = computed(() => templateProperties.value?.filter((x) => !x.newId).filter((x) => x.selected)?.length || 0)
 
+const selectedPropertyIds = computed(() => templateProperties.value?.filter((x) => x.selected)?.map((x) => x._id))
+
 watch(selectedTemplateEntityId, async (value) => {
   if (!value) return
 
@@ -43,31 +53,31 @@ watch(selectedTemplateEntityId, async (value) => {
 async function getTemplateUser () {
   if (templateUser.value) return
 
-  const templateAuthData = await $fetch(`${runtimeConfig.public.entuUrl}/api/auth`, {
+  const data = await $fetch(`${runtimeConfig.public.entuUrl}/api/auth`, {
     headers: { Authorization: `Bearer ${runtimeConfig.public.entuKey}` },
     query: { account: 'template' }
   })
 
   templateUser.value = {
-    _id: templateAuthData?.accounts?.at(0)?.user?._id,
-    token: templateAuthData?.token
+    _id: data?.accounts?.at(0)?.user?._id,
+    token: data?.token
   }
 }
 
 async function getTemplateEntities () {
   await getTemplateUser()
 
-  const templateEntitiesData = await $fetch(`${runtimeConfig.public.entuUrl}/api/template/entity`, {
+  const data = await $fetch(`${runtimeConfig.public.entuUrl}/api/template/entity`, {
     headers: { Authorization: `Bearer ${templateUser.value.token}` },
     query: {
-      // '_viewer.reference': templateUser.value._id,
+      '_viewer.reference': templateUser.value._id,
       '_type.string': 'entity',
       'system._id.exists': 'false',
       props: 'name,label,description'
     }
   })
 
-  return templateEntitiesData?.entities?.map((x) => ({
+  return data?.entities?.map((x) => ({
     _id: x._id,
     _type: getValue(x.name, locale.value),
     label: getValue(x.label, locale.value),
@@ -78,23 +88,24 @@ async function getTemplateEntities () {
 async function getTemplateProperties (entityId) {
   await getTemplateUser()
 
-  const templateEntitiesData = await $fetch(`${runtimeConfig.public.entuUrl}/api/template/entity`, {
+  const data = await $fetch(`${runtimeConfig.public.entuUrl}/api/template/entity`, {
     headers: { Authorization: `Bearer ${templateUser.value.token}` },
     query: {
-      // '_viewer.reference': templateUser.value._id,
+      '_viewer.reference': templateUser.value._id,
       '_parent.reference': entityId,
       '_type.string': 'property',
-      props: 'name,label,description,type,ordinal'
+      props: 'name,label,description,type,ordinal,_sharing'
     }
   })
 
-  const properties = templateEntitiesData?.entities?.map((x) => ({
+  const properties = data?.entities?.map((x) => ({
     _id: x._id,
     _type: getValue(x.name, locale.value),
     label: getValue(x.label, locale.value),
     description: getValue(x.description, locale.value),
     type: getValue(x.type, locale.value),
     ordinal: getValue(x.ordinal, locale.value, 'number'),
+    _sharing: getValue(x._sharing, locale.value),
     selected: true
   }))
 
@@ -112,15 +123,31 @@ async function getNewType () {
 
   if (!account || !token || !parent) return
 
-  const newTypeData = await $fetch(`${runtimeConfig.public.entuUrl}/api/${account}/entity/${type}`, {
+  const data = await $fetch(`${runtimeConfig.public.entuUrl}/api/${account}/entity/${type}`, {
     headers: { Authorization: `Bearer ${token}` },
     query: { props: 'name' }
   })
 
   return {
-    _id: newTypeData?.entity?._id,
-    name: getValue(newTypeData?.entity?.name, locale.value)
+    _id: data?.entity?._id,
+    name: getValue(data?.entity?.name, locale.value)
   }
+}
+
+async function getExistingTypes () {
+  const { account, token } = query
+
+  if (!account || !token || !parent) return
+
+  const data = await $fetch(`${runtimeConfig.public.entuUrl}/api/${account}/entity`, {
+    headers: { Authorization: `Bearer ${token}` },
+    query: {
+      '_type.string': 'entity',
+      props: 'name'
+    }
+  })
+
+  return data?.entities?.map((x) => getValue(x.name, locale.value))
 }
 
 async function getParentType () {
@@ -128,15 +155,142 @@ async function getParentType () {
 
   if (!account || !token || !parent) return
 
-  const parentData = await $fetch(`${runtimeConfig.public.entuUrl}/api/${account}/entity/${parent}`, {
+  const data = await $fetch(`${runtimeConfig.public.entuUrl}/api/${account}/entity/${parent}`, {
     headers: { Authorization: `Bearer ${token}` },
     query: { props: 'name' }
   })
 
   return {
-    _id: parentData?.entity?._id,
-    name: getValue(parentData?.entity?.name, locale.value)
+    _id: data?.entity?._id,
+    name: getValue(data?.entity?.name, locale.value)
   }
+}
+
+async function getEntityAndPropertyId () {
+  const { account, token } = query
+
+  if (!account || !token) return
+
+  const entityData = await $fetch(`${runtimeConfig.public.entuUrl}/api/${account}/entity`, {
+    headers: { Authorization: `Bearer ${token}` },
+    query: {
+      '_type.string': 'entity',
+      'name.string': 'entity',
+      props: '_id',
+      limit: 1
+    }
+  })
+
+  const propertyData = await $fetch(`${runtimeConfig.public.entuUrl}/api/${account}/entity`, {
+    headers: { Authorization: `Bearer ${token}` },
+    query: {
+      '_type.string': 'entity',
+      'name.string': 'property',
+      props: '_id',
+      limit: 1
+    }
+  })
+
+  return {
+    entity: entityData?.entities?.at(0)?._id,
+    property: propertyData?.entities?.at(0)?._id
+  }
+}
+
+async function doImport () {
+  if (!selectedTemplateEntityId.value) return
+
+  importing.value = true
+
+  const { account, token, parent } = query
+
+  await getTemplateUser()
+
+  const entityData = await $fetch(`${runtimeConfig.public.entuUrl}/api/template/entity/${selectedTemplateEntityId.value}`, {
+    headers: { Authorization: `Bearer ${templateUser.value.token}` },
+    query: {
+      props: 'name,label,label_plural,description,type,ordinal,_sharing,_inheritrights'
+    }
+  })
+
+  const entity = entityData?.entity
+
+  if (!entity) {
+    error.value = 'No entity found!'
+    return
+  }
+
+  const propertiesData = await $fetch(`${runtimeConfig.public.entuUrl}/api/template/entity`, {
+    headers: { Authorization: `Bearer ${templateUser.value.token}` },
+    query: {
+      '_type.string': 'property',
+      '_parent.reference': entity._id,
+      '_viewer.reference': templateUser.value._id,
+      props: 'name,type,label,label_plural,description,group,ordinal,list,markdown,multilingual,readonly,mandatory,search,table,decimals,formula,reference_query,set,_sharing,_inheritrights'
+    }
+  })
+
+  const properties = propertiesData?.entities?.filter((x) => selectedPropertyIds.value?.includes(x._id))
+
+  if (properties.length === 0) {
+    error.value = 'No properties found!'
+    return
+  }
+
+  const typeReferences = await getEntityAndPropertyId()
+
+  const entityInsert = [
+    { type: '_type', reference: typeReferences.entity }
+  ]
+
+  for (const [key, value] of Object.entries(entity)) {
+    if (key === '_id' || !Array.isArray(value)) continue
+
+    entityInsert.push(
+      ...value.map(({ _id, type, ...rest }) => ({ type: key, ...rest }))
+    )
+  }
+
+  const newEntity = await $fetch(`${runtimeConfig.public.entuUrl}/api/${account}/entity`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: entityInsert
+  })
+
+  if (!newEntity._id) {
+    error.value = 'Failed to import entity!'
+    return
+  }
+
+  for (const property of properties) {
+    const propertyInsert = [
+      { type: '_type', reference: typeReferences.property },
+      { type: '_parent', reference: newEntity._id }
+    ]
+
+    for (const [key, value] of Object.entries(property)) {
+      if (key === '_id' || !Array.isArray(value)) continue
+
+      propertyInsert.push(
+        ...value.map(({ _id, type, ...rest }) => ({ type: key, ...rest }))
+      )
+    }
+
+    const newProperty = await $fetch(`${runtimeConfig.public.entuUrl}/api/${account}/entity`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: propertyInsert
+    })
+
+    if (!newProperty._id) {
+      error.value = `Failed to import property ${getValue(property.name)}!`
+      continue
+    }
+
+    templateProperties.value.find((x) => x._id === property._id).newId = newProperty._id
+  }
+
+  importing.value = false
 }
 
 onMounted(async () => {
@@ -161,11 +315,14 @@ onMounted(async () => {
 
   newType.value = await getNewType()
   templateEntities.value = await getTemplateEntities()
+  existingTypes.value = await getExistingTypes()
   parentType.value = await getParentType()
 })
 </script>
 
 <template>
+  <!-- <pre class="mt-8 overflow-auto text-xs">{{ selectedPropertyIds }}</pre> -->
+
   <div
     v-if="error"
     class="flex h-full max-h-full items-center justify-center font-bold text-red-700"
@@ -222,6 +379,7 @@ onMounted(async () => {
           <th class="bg-gray-100 p-3 text-left">
             {{ t('type') }}
           </th>
+          <th class="w-32 bg-gray-100 p-3 text-left" />
         </tr>
       </thead>
 
@@ -246,6 +404,23 @@ onMounted(async () => {
           <td class="p-3 text-sm">
             {{ templateProperty.type }}
           </td>
+          <td class="w-32 p-3 text-sm">
+            <my-icon
+              v-if="templateProperty._sharing === 'public'"
+              class="text-gray-500 group-hover:text-orange-600"
+              icon="sharing/public"
+            />
+            <my-icon
+              v-else-if="templateProperty._sharing === 'domain'"
+              class="text-gray-500 group-hover:text-yellow-600"
+              icon="sharing/domain"
+            />
+            <my-icon
+              v-else
+              class="text-gray-500 group-hover:text-green-600"
+              icon="sharing/private"
+            />
+          </td>
         </tr>
       </tbody>
     </table>
@@ -268,8 +443,6 @@ onMounted(async () => {
         <n-spin show />
       </div>
     </div>
-
-    <!-- <pre class="mt-8 overflow-auto text-xs">query: {{ query }}</pre> -->
   </div>
 </template>
 

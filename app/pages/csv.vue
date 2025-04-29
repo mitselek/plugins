@@ -105,7 +105,7 @@ async function getTypes () {
     '_type.string': 'property',
     'formula._id.exists': false,
     'readonly._id.exists': false,
-    props: ['name', 'label', 'type', 'ordinal'].join(',')
+    props: 'name,label,type,ordinal'
   })
   const result = await fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity?${params.toString()}`, {
     headers: {
