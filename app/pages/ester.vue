@@ -14,22 +14,11 @@ async function doSearch () {
   if (isLoading.value || !queryString.value) return
 
   isLoading.value = true
+
   esterItems.value = []
-
-  const url = new URL(runtimeConfig.public.esterUrl)
-  url.searchParams.append('f', 'human')
-  url.searchParams.append('q', queryString.value)
-
-  const result = await fetch(url.toString())
+  esterItems.value = await $fetch('/api/ester', { query: { q: queryString.value } })
 
   isLoading.value = false
-
-  if (!result.ok) {
-    console.error('Failed to fetch data from ESTER')
-    return
-  }
-
-  esterItems.value = await result.json()
 }
 
 async function addEsterItem (item) {
@@ -56,26 +45,14 @@ async function addEsterItem (item) {
     }
   }
 
-  const result = await fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity`, {
+  const { _id } = await $fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${query.token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(properties)
+    body: properties
   })
-
-  if (!result.ok) {
-    error.value = 'Failed to add entity!'
-
-    setTimeout(() => {
-      error.value = null
-    }, 3000)
-
-    return
-  }
-
-  const { _id } = await result.json()
 
   await navigateTo(`${runtimeConfig.public.entuUrl}/${query.account}/${_id}#edit`, { external: true, open: { target: '_top' } })
 }
@@ -179,9 +156,7 @@ onMounted(() => {
                 </div>
               </div>
 
-              <n-button
-                @click="addEsterItem(item)"
-              >
+              <n-button @click="addEsterItem(item)">
                 Add
               </n-button>
             </td>
