@@ -2,6 +2,7 @@
 export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
+    '@nuxt/scripts',
     '@nuxtjs/i18n',
     '@nuxtjs/tailwindcss',
     '@vueuse/nuxt',
@@ -31,6 +32,11 @@ export default defineNuxtConfig({
   },
   i18n: {
     vueI18n: '~~/.config/i18n.config.ts'
+  },
+  scripts: {
+    registry: {
+      plausibleAnalytics: { domain: 'plugins.entu.app' }
+    }
   },
   tailwindcss: {
     cssPath: '~/assets/tailwind.css',
