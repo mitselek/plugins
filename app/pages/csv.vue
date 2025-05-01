@@ -100,16 +100,14 @@ watch([file, encoding], ([fileValue, encodingValue]) => {
 })
 
 async function getTypes () {
-  const params = new URLSearchParams({
-    '_parent.reference': query.type,
-    '_type.string': 'property',
-    'formula._id.exists': false,
-    'readonly._id.exists': false,
-    props: 'name,label,type,ordinal'
-  })
-  const result = await fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity?${params.toString()}`, {
-    headers: {
-      Authorization: `Bearer ${query.token}`
+  const result = await $fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity`, {
+    headers: { Authorization: `Bearer ${query.token}` },
+    query: {
+      '_parent.reference': query.type,
+      '_type.string': 'property',
+      'formula._id.exists': false,
+      'readonly._id.exists': false,
+      props: 'name,label,type,ordinal'
     }
   })
 
