@@ -1,5 +1,6 @@
+const { esterUrl } = useRuntimeConfig()
+
 export default defineEventHandler(async (event) => {
-  const { esterUrl } = useRuntimeConfig()
   const { q } = getQuery(event)
 
   setResponseHeader(event, 'Content-Type', 'application/json')

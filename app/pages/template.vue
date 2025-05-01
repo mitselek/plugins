@@ -50,27 +50,9 @@ watch(selectedTemplateEntityId, async (value) => {
   templateProperties.value = await getTemplateProperties(value)
 })
 
-async function getTemplateUser () {
-  if (templateUser.value) return
-
-  const data = await $fetch(`${runtimeConfig.public.entuUrl}/api/auth`, {
-    headers: { Authorization: `Bearer ${runtimeConfig.public.entuKey}` },
-    query: { account: 'template' }
-  })
-
-  templateUser.value = {
-    _id: data?.accounts?.at(0)?.user?._id,
-    token: data?.token
-  }
-}
-
 async function getTemplateEntities () {
-  await getTemplateUser()
-
-  const data = await $fetch(`${runtimeConfig.public.entuUrl}/api/template/entity`, {
-    headers: { Authorization: `Bearer ${templateUser.value.token}` },
+  const data = await $fetch('/api/template', {
     query: {
-      '_viewer.reference': templateUser.value._id,
       '_type.string': 'entity',
       'system._id.exists': 'false',
       props: 'name,label,description'
@@ -86,12 +68,8 @@ async function getTemplateEntities () {
 }
 
 async function getTemplateProperties (entityId) {
-  await getTemplateUser()
-
-  const data = await $fetch(`${runtimeConfig.public.entuUrl}/api/template/entity`, {
-    headers: { Authorization: `Bearer ${templateUser.value.token}` },
+  const data = await $fetch('/api/template', {
     query: {
-      '_viewer.reference': templateUser.value._id,
       '_parent.reference': entityId,
       '_type.string': 'property',
       props: 'name,label,description,type,ordinal,_sharing'
@@ -204,11 +182,9 @@ async function doImport () {
 
   const { account, token, parent } = query
 
-  await getTemplateUser()
-
-  const entityData = await $fetch(`${runtimeConfig.public.entuUrl}/api/template/entity/${selectedTemplateEntityId.value}`, {
-    headers: { Authorization: `Bearer ${templateUser.value.token}` },
+  const entityData = await $fetch('/api/template', {
     query: {
+      _id: selectedTemplateEntityId.value,
       props: 'name,label,label_plural,description,type,ordinal,_sharing,_inheritrights'
     }
   })
@@ -220,12 +196,10 @@ async function doImport () {
     return
   }
 
-  const propertiesData = await $fetch(`${runtimeConfig.public.entuUrl}/api/template/entity`, {
-    headers: { Authorization: `Bearer ${templateUser.value.token}` },
+  const propertiesData = await $fetch('/api/template', {
     query: {
       '_type.string': 'property',
       '_parent.reference': entity._id,
-      '_viewer.reference': templateUser.value._id,
       props: 'name,type,label,label_plural,description,group,ordinal,list,markdown,multilingual,readonly,mandatory,search,table,decimals,formula,reference_query,set,_sharing,_inheritrights'
     }
   })

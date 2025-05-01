@@ -11,10 +11,10 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   spaLoadingTemplate: false,
   runtimeConfig: {
+    entuKey: '',
     esterUrl: '',
     public: {
       entuUrl: '',
-      entuKey: '',
     }
   },
   future: {
