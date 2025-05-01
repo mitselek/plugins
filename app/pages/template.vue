@@ -1,5 +1,5 @@
 <script setup>
-import { NButton, NCheckbox, NForm, NFormItem, NSelect, NSpin, NUpload, NUploadDragger } from 'naive-ui'
+import { NButton, NCheckbox, NSelect, NSpin } from 'naive-ui'
 
 const { locale, t } = useI18n()
 const { query } = useRoute()
@@ -7,7 +7,6 @@ const runtimeConfig = useRuntimeConfig()
 
 const error = ref(null)
 const importing = ref(false)
-const templateUser = ref()
 const templateEntities = ref([])
 const templateProperties = ref([])
 const newType = ref()

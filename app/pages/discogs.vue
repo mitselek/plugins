@@ -1,6 +1,7 @@
 <script setup>
 import { NButton, NInput, NInputGroup, NSpin, NTable } from 'naive-ui'
 
+const { locale, t } = useI18n()
 const { query } = useRoute()
 const runtimeConfig = useRuntimeConfig()
 
@@ -72,6 +73,8 @@ function convertType (type) {
 }
 
 onMounted(() => {
+  locale.value = query.locale || 'en'
+
   if (!query.account) {
     error.value = 'No account parameter!'
     return
@@ -110,8 +113,8 @@ onMounted(() => {
       <n-input
         v-model:value="queryString"
         autofocus
-        placeholder="Search from Discogs"
         :loading="isLoading"
+        :placeholder="t('searchInfo')"
         @keyup.enter="doSearch()"
       />
 
@@ -121,7 +124,7 @@ onMounted(() => {
         :disabled="isLoading"
         @click="doSearch()"
       >
-        Search
+        {{ t('search') }}
       </n-button>
     </n-input-group>
 
@@ -164,7 +167,7 @@ onMounted(() => {
               </div>
 
               <n-button @click="doImport(item)">
-                Add
+                {{ t('import') }}
               </n-button>
             </td>
           </tr>
@@ -173,3 +176,14 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<i18n lang="yaml">
+  en:
+    search: Search
+    searchInfo: Search from Discogs
+    import: Import
+  et:
+    search: Otsi
+    searchInfo: Otsi Discogs-ist
+    import: Impordi
+</i18n>

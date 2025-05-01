@@ -1,6 +1,7 @@
 <script setup>
 import { NButton, NInput, NInputGroup, NSpin, NTable } from 'naive-ui'
 
+const { locale, t } = useI18n()
 const { query } = useRoute()
 const runtimeConfig = useRuntimeConfig()
 
@@ -21,7 +22,7 @@ async function doSearch () {
   isLoading.value = false
 }
 
-async function addEsterItem (item) {
+async function doImport (item) {
   if (!query.account) return
   if (!query.type) return
   if (!query.token) return
@@ -68,6 +69,8 @@ function convertType (type) {
 }
 
 onMounted(() => {
+  locale.value = query.locale || 'en'
+
   if (!query.account) {
     error.value = 'No account parameter!'
     return
@@ -106,8 +109,8 @@ onMounted(() => {
       <n-input
         v-model:value="queryString"
         autofocus
-        placeholder="Search from ESTER"
         :loading="isLoading"
+        :placeholder="t('searchInfo')"
         @keyup.enter="doSearch()"
       />
 
@@ -117,7 +120,7 @@ onMounted(() => {
         :disabled="isLoading"
         @click="doSearch()"
       >
-        Search
+        {{ t('search') }}
       </n-button>
     </n-input-group>
 
@@ -153,8 +156,8 @@ onMounted(() => {
                 </div>
               </div>
 
-              <n-button @click="addEsterItem(item)">
-                Add
+              <n-button @click="doImport(item)">
+                {{ t('import') }}
               </n-button>
             </td>
           </tr>
@@ -163,3 +166,14 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<i18n lang="yaml">
+  en:
+    search: Search
+    searchInfo: Search from ESTER
+    import: Import
+  et:
+    search: Otsi
+    searchInfo: Otsi ESTER-ist
+    import: Impordi
+  </i18n>
