@@ -6,7 +6,7 @@ const runtimeConfig = useRuntimeConfig()
 
 const error = ref(null)
 const queryString = ref('')
-const esterItems = ref([])
+const items = ref([])
 const isLoading = ref(false)
 const isAdding = ref(false)
 
@@ -15,13 +15,13 @@ async function doSearch () {
 
   isLoading.value = true
 
-  esterItems.value = []
-  esterItems.value = await $fetch('/api/ester', { query: { q: queryString.value } })
+  items.value = []
+  items.value = await $fetch('/api/discogs', { query: { q: queryString.value } })
 
   isLoading.value = false
 }
 
-async function addEsterItem (item) {
+async function doImport (item) {
   if (!query.account) return
   if (!query.type) return
   if (!query.token) return
@@ -45,6 +45,10 @@ async function addEsterItem (item) {
     }
   }
 
+  console.log(properties.filter((x) => Boolean(x.type)))
+
+  return
+
   const { _id } = await $fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${query.token}` },
@@ -58,10 +62,10 @@ function convertType (type) {
   switch (type) {
     case 'title':
       return 'name'
-    case 'isbn':
-      return 'isn'
-    case 'issn':
-      return 'isn'
+    case 'url':
+      return undefined
+    case 'image':
+      return undefined
     default:
       return type.replaceAll('-', '_')
   }
@@ -106,7 +110,7 @@ onMounted(() => {
       <n-input
         v-model:value="queryString"
         autofocus
-        placeholder="Search from ESTER"
+        placeholder="Search from Discogs"
         :loading="isLoading"
         @keyup.enter="doSearch()"
       />
@@ -123,7 +127,7 @@ onMounted(() => {
 
     <div class="overflow-auto">
       <n-table
-        v-if="esterItems.length > 0"
+        v-if="items.length > 0"
         :bordered="false"
         :bottom-bordered="false"
         :single-line="false"
@@ -131,29 +135,35 @@ onMounted(() => {
       >
         <tbody>
           <tr
-            v-for="item in esterItems"
-            :key="item['ester-id']"
+            v-for="item in items"
+            :key="item.release_id?.at(0)"
           >
-            <td class="flex items-center justify-between gap-2">
-              <div>
-                <div class="font-bold">
+            <td class="flex items-start justify-between gap-4">
+              <img
+                :src="item.image?.at(0)"
+                class="size-16"
+              >
+
+              <div class="grow">
+                <a
+                  class="font-bold hover:underline"
+                  :href="item.url?.at(0)"
+                  target="_blank"
+                >
                   {{ item.title?.join(', ') }}
+                </a>
+                <div>
+                  {{ item.format?.join(', ') }}
                 </div>
                 <div class="italic">
-                  {{ item.subtitle?.join(', ') }}
+                  {{ [...item.year || [], ...item.country || []].join(', ') }}
                 </div>
                 <div>
-                  {{ item.author?.join(', ') }}
-                </div>
-                <div>
-                  {{ [item?.['publishing-place'] || [], ...item?.['publishing-date'] || []]?.join(' ') }}
-                </div>
-                <div>
-                  {{ item?.['isbn']?.join(', ') }}
+                  {{ item.label?.join(', ') }}
                 </div>
               </div>
 
-              <n-button @click="addEsterItem(item)">
+              <n-button @click="doImport(item)">
                 Add
               </n-button>
             </td>

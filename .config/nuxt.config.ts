@@ -11,6 +11,8 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   spaLoadingTemplate: false,
   runtimeConfig: {
+    discogsKey: '',
+    discogsUrl: '',
     entuKey: '',
     esterUrl: '',
     public: {
