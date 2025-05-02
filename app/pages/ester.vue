@@ -49,7 +49,7 @@ async function doImport (item) {
   const { _id } = await $fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${query.token}` },
-    body: properties.filter((x) => Boolean(x.type))
+    body: properties.filter((x) => x.type && (x.string || x.reference))
   })
 
   await navigateTo(`${runtimeConfig.public.entuUrl}/${query.account}/${_id}#edit`, { external: true, open: { target: '_top' } })

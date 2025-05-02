@@ -42,7 +42,7 @@ async function doImport (id) {
   for (const [key, value] of Object.entries(release)) {
     for (const i of value) {
       properties.push({
-        type: convertType(key),
+        type: key,
         string: i
       })
     }
@@ -51,23 +51,10 @@ async function doImport (id) {
   const { _id } = await $fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${query.token}` },
-    body: properties.filter((x) => Boolean(x.type) && Boolean(x.string))
+    body: properties.filter((x) => x.type && (x.string || x.reference))
   })
 
   await navigateTo(`${runtimeConfig.public.entuUrl}/${query.account}/${_id}#edit`, { external: true, open: { target: '_top' } })
-}
-
-function convertType (type) {
-  switch (type) {
-    case 'title':
-      return 'name'
-    case 'url':
-      return undefined
-    case 'image':
-      return undefined
-    default:
-      return type.replaceAll('-', '_')
-  }
 }
 
 async function getRelease (id) {
