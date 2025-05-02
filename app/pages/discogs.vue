@@ -22,12 +22,14 @@ async function doSearch () {
   isLoading.value = false
 }
 
-async function doImport (item) {
+async function doImport (id) {
   if (!query.account) return
   if (!query.type) return
   if (!query.token) return
 
   isAdding.value = true
+
+  const release = await getRelease(id)
 
   const properties = [
     { type: '_type', reference: query.type }
@@ -37,7 +39,7 @@ async function doImport (item) {
     properties.push({ type: '_parent', reference: query.parent })
   }
 
-  for (const [key, value] of Object.entries(item)) {
+  for (const [key, value] of Object.entries(release)) {
     for (const i of value) {
       properties.push({
         type: convertType(key),
@@ -46,14 +48,10 @@ async function doImport (item) {
     }
   }
 
-  console.log(properties.filter((x) => Boolean(x.type)))
-
-  return
-
   const { _id } = await $fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${query.token}` },
-    body: properties.filter((x) => Boolean(x.type))
+    body: properties.filter((x) => Boolean(x.type) && Boolean(x.string))
   })
 
   await navigateTo(`${runtimeConfig.public.entuUrl}/${query.account}/${_id}#edit`, { external: true, open: { target: '_top' } })
@@ -69,6 +67,27 @@ function convertType (type) {
       return undefined
     default:
       return type.replaceAll('-', '_')
+  }
+}
+
+async function getRelease (id) {
+  const data = await $fetch(`https://api.discogs.com/releases/${id}`)
+
+  return {
+    discogs_id: [data.id],
+    year: [data.year],
+    artists: [...new Set(data.artists?.map((x) => x.name))],
+    series: [...new Set(data.series?.map((x) => x.name))],
+    series_number: [...new Set(data.series?.map((x) => x.catno))],
+    label: [...new Set(data.labels?.map((x) => x.name))],
+    company: [...new Set(data.companies?.map((x) => x.name))],
+    format: [...new Set(data.formats?.map((x) => [x.name, ...x.descriptions]).flat())],
+    title: [data.title],
+    country: [data.country],
+    notes: [data.notes],
+    barcode: [...new Set(data.identifiers?.filter((x) => x.type.toLowerCase() === 'Barcode')?.map((x) => x.value))],
+    genre: [...new Set(data.genres)],
+    style: [...new Set(data.styles)]
   }
 }
 
@@ -139,34 +158,34 @@ onMounted(() => {
         <tbody>
           <tr
             v-for="item in items"
-            :key="item.release_id?.at(0)"
+            :key="item.id"
           >
             <td class="flex items-start justify-between gap-4">
               <img
-                :src="item.image?.at(0)"
+                :src="item.image"
                 class="size-16"
               >
 
               <div class="grow">
                 <a
                   class="font-bold hover:underline"
-                  :href="item.url?.at(0)"
                   target="_blank"
+                  :href="`https://www.discogs.com/release/${item.id}`"
                 >
-                  {{ item.title?.join(', ') }}
+                  {{ item.title }}
                 </a>
                 <div>
                   {{ item.format?.join(', ') }}
                 </div>
                 <div class="italic">
-                  {{ [...item.year || [], ...item.country || []].join(', ') }}
+                  {{ [item.year, item.country].join(', ') }}
                 </div>
                 <div>
                   {{ item.label?.join(', ') }}
                 </div>
               </div>
 
-              <n-button @click="doImport(item)">
+              <n-button @click="doImport(item.id)">
                 {{ t('import') }}
               </n-button>
             </td>
