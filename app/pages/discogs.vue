@@ -63,7 +63,7 @@ async function getRelease (id) {
   return {
     discogs_id: [data.id],
     year: [data.year],
-    artists: [...new Set(data.artists?.map((x) => x.name))],
+    artist: [...new Set(data.artists?.map((x) => x.name))],
     series: [...new Set(data.series?.map((x) => x.name))],
     series_number: [...new Set(data.series?.map((x) => x.catno))],
     label: [...new Set(data.labels?.map((x) => x.name))],
