@@ -30,5 +30,8 @@
     "nuxt": "3.17.1",
     "nuxt-icons": "3.2.1",
     "papaparse": "5.5.2"
+  },
+  "dependencies": {
+    "@tmcw/togeojson": "^7.1.2"
   }
 }

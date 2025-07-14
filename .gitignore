@@ -4,4 +4,5 @@
 .output
 dist
 node_modules
-.ai_docs/
+.ai_docs/*
+!.ai_docs/PRPs/
