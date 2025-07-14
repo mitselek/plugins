@@ -56,16 +56,19 @@ This component will handle the complete KML import process in the browser.
 // 1. Imports (Vue composables + @tmcw/togeojson)
 import * as toGeoJSON from '@tmcw/togeojson'
 
-// 2. Get `account`, `token`, `parent`, and `type` from URL query parameters
-// 3. State management (file object, parsed locations, selected items, loading state, progress, results)
-// 4. `handleFileSelect` function to capture the file selection
-// 5. `parseKML` function:
+// 2. Step constants for clarity and maintainability
+const STEPS = { UPLOAD: 'upload', REVIEW: 'review', RESULTS: 'results' }
+
+// 3. Get `account`, `token`, `parent`, and `type` from URL query parameters
+// 4. State management (file object, parsed locations, selected items, loading state, progress, results)
+// 5. `handleFileSelect` function to capture the file selection
+// 6. `parseKML` function:
 //    - Read file content as text using FileReader API
 //    - Parse XML using DOMParser: new DOMParser().parseFromString(xml, "application/xml")
 //    - Convert to GeoJSON using: toGeoJSON.kml(parsedXML)
 //    - Clean description HTML and convert links to markdown
 //    - Display locations list with pre-checked checkboxes
-// 6. `importSelected` function:
+// 7. `importSelected` function:
 //    - Validate that locations are selected
 //    - For each selected feature, create Entu entity
 //    - Direct API calls to Entu from browser
