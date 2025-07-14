@@ -4,3 +4,4 @@
 .output
 dist
 node_modules
+.ai_docs/
