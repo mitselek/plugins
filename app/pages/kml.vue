@@ -275,6 +275,61 @@ onMounted(() => {
   }
 })
 
+// Helper function to clean up HTML descriptions and convert links to markdown
+const cleanDescription = (description) => {
+  if (!description) return ''
+
+  // Handle cases where description might be an object
+  let htmlContent = ''
+  if (typeof description === 'string') {
+    htmlContent = description
+  } else if (typeof description === 'object' && description.value) {
+    // Handle structured description objects like { "@type": "html", "value": "..." }
+    htmlContent = description.value
+  } else if (typeof description === 'object') {
+    // Try to extract any string content from the object
+    htmlContent = description.toString()
+  } else {
+    return ''
+  }
+
+  // Create a temporary DOM element to work with the HTML
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = htmlContent
+
+  // Convert <br> tags to newlines before processing links
+  tempDiv.innerHTML = tempDiv.innerHTML.replace(/<br\s*\/?>/gi, '\n')
+
+  // Convert links to markdown format before extracting text
+  const links = tempDiv.querySelectorAll('a')
+  links.forEach(link => {
+    const href = link.getAttribute('href')
+    const text = link.textContent || link.innerText || href
+
+    if (href) {
+      // Replace the link element with markdown format [text](url)
+      const markdownLink = `[${text}](${href})`
+      link.outerHTML = markdownLink
+    }
+  })
+
+  // Also handle plain URLs that aren't wrapped in <a> tags
+  let textContent = tempDiv.textContent || tempDiv.innerText || ''
+
+  // Convert plain URLs to markdown links (basic pattern)
+  textContent = textContent.replace(/(https?:\/\/[^\s]+)/g, '[$1]($1)')
+
+  // Clean up extra whitespace but preserve line breaks
+  // First normalize line breaks, then clean up spaces
+  return textContent
+    .replace(/\r\n/g, '\n')  // normalize Windows line breaks
+    .replace(/\r/g, '\n')    // normalize Mac line breaks
+    .replace(/[ \t]+/g, ' ') // collapse spaces and tabs, but keep newlines
+    .replace(/\n\s*/g, '\n') // clean up spaces after line breaks
+    .replace(/\n{3,}/g, '\n\n') // limit consecutive line breaks to max 2
+    .trim()
+}
+
 // Methods
 const handleFileSelect = (event) => {
   const file = event.target.files[0]
@@ -324,7 +379,7 @@ const parseKML = async () => {
 
           const location = {
             name: feature.properties?.name || '',
-            description: feature.properties?.description || '',
+            description: cleanDescription(feature.properties?.description),
             coordinates: coordinates, // [longitude, latitude]
             selected: true // Pre-checked as per requirements
           }
