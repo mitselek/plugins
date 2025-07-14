@@ -1,3 +1,11 @@
+<!--
+  KML Import Plugin Template
+
+  Three-step wizard for importing KML files into Entu:
+  1. Upload: File selection and validation
+  2. Review: Location selection with checkboxes
+  3. Results: Import feedback and error handling
+-->
 <template>
   <div class="container mx-auto px-4 py-8">
     <div class="max-w-4xl mx-auto">
@@ -196,10 +204,21 @@
 </template>
 
 <script setup>
+/*
+  KML Import Plugin Script
+
+  Handles browser-based KML file parsing and entity creation in Entu.
+  Architecture: Client-side processing with direct API calls to Entu.
+*/
+
+// IMPORTS AND DEPENDENCIES
+// ======================================
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import * as toGeoJSON from '@tmcw/togeojson'
 
+// CONFIGURATION AND CONSTANTS
+// ======================================
 const runtimeConfig = useRuntimeConfig()
 const route = useRoute()
 const { query } = route
@@ -207,19 +226,21 @@ const { query } = route
 // Step constants for clarity and maintainability
 const STEPS = {
   UPLOAD: 'upload',
-  REVIEW: 'review', 
+  REVIEW: 'review',
   RESULTS: 'results'
 }
 
-// Reactive state
+// REACTIVE STATE MANAGEMENT
+// ======================================
+// UI state
 const step = ref(STEPS.UPLOAD)
 const selectedFile = ref(null)
-
-
 const locations = ref([])
 const parsing = ref(false)
 const importing = ref(false)
 const error = ref('')
+
+// Import results tracking
 const importResults = ref({
   success: [],
   errors: [],
@@ -227,10 +248,12 @@ const importResults = ref({
   skipped: 0
 })
 
-// Refs
+// TEMPLATE REFS
+// ======================================
 const fileInput = ref(null)
 
-// Computed properties
+// COMPUTED PROPERTIES
+// ======================================
 const hasSelectedLocations = computed(() =>
   locations.value.some(location => location.selected)
 )
@@ -239,8 +262,8 @@ const selectedCount = computed(() =>
   locations.value.filter(location => location.selected).length
 )
 
-
-
+// LIFECYCLE HOOKS
+// ======================================
 // Initialize from URL parameters
 onMounted(async () => {
   // Validate required parameters
@@ -260,9 +283,21 @@ onMounted(async () => {
   }
 })
 
-
-
-// Helper function to clean up HTML descriptions and convert links to markdown
+// UTILITY FUNCTIONS
+// ======================================
+/**
+ * Cleans HTML content from KML descriptions and converts to markdown
+ *
+ * Process:
+ * 1. Handles string, object, or structured description formats
+ * 2. Strips HTML tags while preserving content
+ * 3. Converts <a> links to markdown [text](url) format
+ * 4. Converts plain URLs to markdown links
+ * 5. Normalizes whitespace and line breaks
+ *
+ * @param {string|Object} description - Raw description from KML
+ * @returns {string} Cleaned description with markdown links
+ */
 const cleanDescription = (description) => {
   if (!description) return ''
 
@@ -317,7 +352,12 @@ const cleanDescription = (description) => {
     .trim()
 }
 
-// Methods
+// FILE HANDLING METHODS
+// ======================================
+/**
+ * File selection and parsing methods for KML import workflow
+ */
+
 const handleFileSelect = (event) => {
   const file = event.target.files[0]
   if (file) {
@@ -326,6 +366,28 @@ const handleFileSelect = (event) => {
   }
 }
 
+const readFileAsText = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => resolve(e.target.result)
+    reader.onerror = (e) => reject(new Error('Failed to read file'))
+    reader.readAsText(file)
+  })
+}
+
+/**
+ * Parses uploaded KML file and extracts point locations
+ *
+ * Workflow:
+ * 1. Read file content as text using FileReader
+ * 2. Parse XML using DOMParser with application/xml MIME type
+ * 3. Convert KML to GeoJSON using @tmcw/togeojson library
+ * 4. Extract Point geometries with valid coordinates
+ * 5. Clean descriptions and prepare location objects
+ * 6. Transition to review step with pre-selected locations
+ *
+ * @throws {Error} For invalid files, XML parsing errors, or no locations found
+ */
 const parseKML = async () => {
   if (!selectedFile.value) {
     error.value = 'Please select a file'
@@ -388,14 +450,11 @@ const parseKML = async () => {
   }
 }
 
-const readFileAsText = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (e) => resolve(e.target.result)
-    reader.onerror = (e) => reject(new Error('Failed to read file'))
-    reader.readAsText(file)
-  })
-}
+// LOCATION SELECTION METHODS
+// ======================================
+/**
+ * Methods for managing location selection in the review step
+ */
 
 const selectAll = () => {
   locations.value.forEach(location => {
@@ -409,11 +468,60 @@ const selectNone = () => {
   })
 }
 
+// NAVIGATION METHODS
+// ======================================
+/**
+ * Methods for navigating between workflow steps
+ */
+
 const goBackToUpload = () => {
   step.value = STEPS.UPLOAD
   error.value = ''
 }
 
+const retryImport = async () => {
+  // Go back to review step and allow user to retry import
+  step.value = STEPS.REVIEW
+  error.value = ''
+}
+
+const startOver = () => {
+  step.value = STEPS.UPLOAD
+  selectedFile.value = null
+  locations.value = []
+  error.value = ''
+  importResults.value = {
+    success: [],
+    errors: [],
+    stopped: false,
+    skipped: 0
+  }
+
+  // Reset file input
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
+// API INTERACTION METHODS
+// ======================================
+/**
+ * Methods for importing locations and creating entities in Entu
+ */
+
+/**
+ * Imports selected locations to Entu as new entities
+ *
+ * Process:
+ * 1. Validates that locations are selected
+ * 2. Iterates through selected locations sequentially
+ * 3. Creates entity data with name, description, and coordinates
+ * 4. Calls createEntity API for each location
+ * 5. Stops on first error (fail-fast approach)
+ * 6. Tracks success/error results for user feedback
+ *
+ * @throws {Error} For validation failures or API errors
+ */
 const importSelected = async () => {
   const selectedLocations = locations.value.filter(location => location.selected)
 
@@ -485,6 +593,11 @@ const importSelected = async () => {
   }
 }
 
+/**
+ * Creates a new entity in Entu via direct API call
+ * @param {Object} entityData - Entity data with properties (name, description, coordinates)
+ * @returns {string} - Created entity ID
+ */
 const createEntity = async (entityData) => {
   // Prepare properties for Entu API
   const properties = [
@@ -536,27 +649,7 @@ const createEntity = async (entityData) => {
   return response._id
 }
 
-const retryImport = async () => {
-  // Go back to review step and allow user to retry import
-  step.value = STEPS.REVIEW
-  error.value = ''
-}
-
-const startOver = () => {
-  step.value = STEPS.UPLOAD
-  selectedFile.value = null
-  locations.value = []
-  error.value = ''
-  importResults.value = {
-    success: [],
-    errors: [],
-    stopped: false,
-    skipped: 0
-  }
-
-  // Reset file input
-  if (fileInput.value) {
-    fileInput.value.value = ''
-  }
-}
+// ======================================
+// END OF KML IMPORT PLUGIN
+// ======================================
 </script>
