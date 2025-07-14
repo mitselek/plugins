@@ -601,7 +601,7 @@ const importSelected = async () => {
 const createEntity = async (entityData) => {
   // Prepare properties for Entu API
   const properties = [
-    { type: '_type', string: query.type }
+    { type: '_type', reference: query.type }
   ]
 
   // Add parent if specified in URL

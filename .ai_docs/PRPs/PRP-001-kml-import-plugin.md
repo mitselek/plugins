@@ -12,7 +12,7 @@ This PRP proposes the creation of a new plugin that provides a user interface fo
 
 - A new page is available at `/kml`. The plugin receives `account`, `token`, `parent`, and `type` as URL query parameters.
 - The parent `kaart` (map) entity is identified by the `parent` URL parameter.
-- The entity type is provided via the `type` URL parameter (e.g., `type=asukoht`) and used directly without user input.
+- The entity type is provided via the `type` URL parameter (e.g., `type=EntuId`) and used directly without user input.
 - The browser successfully parses the uploaded KML file using `@tmcw/togeojson` library in the browser.
 - After successful parsing, users are presented with a list of all locations found in the KML file with pre-checked checkboxes for selection.
 - Users can review, uncheck unwanted locations, and then proceed with the import of selected items only.
@@ -142,7 +142,7 @@ reader.readAsText(file)
 - `account`: Entu account identifier
 - `token`: Authentication token for API access
 - `parent`: Parent entity ID (map/kaart entity)
-- `type`: Entity type for created locations (e.g., 'asukoht')
+- `type`: Entity type ID for created locations (e.g., 'asukoht')
 
 **Optional:**
 
@@ -151,7 +151,7 @@ reader.readAsText(file)
 **Example URL:**
 
 ```url
-/kml?account=myaccount&token=abc123&parent=map123&type=asukoht&locale=et
+/kml?account=myaccount&token=abc123&parent=map123&type=asukohtentityid&locale=et
 ```
 
 ### 4.2. Data Mapping
