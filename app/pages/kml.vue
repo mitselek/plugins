@@ -4,7 +4,7 @@
       <h1 class="text-3xl font-bold text-gray-900 mb-8">KML Import</h1>
 
       <!-- Step 1: File Upload -->
-      <div v-if="step === 'upload'" class="bg-white shadow rounded-lg p-6">
+      <div v-if="step === STEPS.UPLOAD" class="bg-white shadow rounded-lg p-6">
         <h2 class="text-xl font-semibold text-gray-900 mb-4">Upload KML File</h2>
 
         <div class="mb-6">
@@ -34,7 +34,7 @@
       </div>
 
       <!-- Step 2: Review Locations -->
-      <div v-if="step === 'review'" class="bg-white shadow rounded-lg p-6">
+      <div v-if="step === STEPS.REVIEW" class="bg-white shadow rounded-lg p-6">
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-xl font-semibold text-gray-900">Review Locations</h2>
           <button
@@ -103,7 +103,7 @@
       </div>
 
       <!-- Step 3: Import Results -->
-      <div v-if="step === 'results'" class="bg-white shadow rounded-lg p-6">
+      <div v-if="step === STEPS.RESULTS" class="bg-white shadow rounded-lg p-6">
         <div class="mb-6">
           <h2 class="text-xl font-semibold text-gray-900">Import Results</h2>
         </div>
@@ -204,8 +204,15 @@ const runtimeConfig = useRuntimeConfig()
 const route = useRoute()
 const { query } = route
 
+// Step constants for clarity and maintainability
+const STEPS = {
+  UPLOAD: 'upload',
+  REVIEW: 'review', 
+  RESULTS: 'results'
+}
+
 // Reactive state
-const step = ref('upload')
+const step = ref(STEPS.UPLOAD)
 const selectedFile = ref(null)
 
 
@@ -373,7 +380,7 @@ const parseKML = async () => {
     }
 
     locations.value = extractedLocations
-    step.value = 'review'
+    step.value = STEPS.REVIEW
   } catch (err) {
     error.value = `Failed to parse KML file: ${err.message}`
   } finally {
@@ -403,7 +410,7 @@ const selectNone = () => {
 }
 
 const goBackToUpload = () => {
-  step.value = 'upload'
+  step.value = STEPS.UPLOAD
   error.value = ''
 }
 
@@ -470,7 +477,7 @@ const importSelected = async () => {
       }
     }
 
-    step.value = 'results'
+    step.value = STEPS.RESULTS
   } catch (err) {
     error.value = `Import failed: ${err.message}`
   } finally {
@@ -531,12 +538,12 @@ const createEntity = async (entityData) => {
 
 const retryImport = async () => {
   // Go back to review step and allow user to retry import
-  step.value = 'review'
+  step.value = STEPS.REVIEW
   error.value = ''
 }
 
 const startOver = () => {
-  step.value = 'upload'
+  step.value = STEPS.UPLOAD
   selectedFile.value = null
   locations.value = []
   error.value = ''
