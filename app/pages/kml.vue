@@ -7,30 +7,6 @@
       <div v-if="step === 'upload'" class="bg-white shadow rounded-lg p-6">
         <h2 class="text-xl font-semibold text-gray-900 mb-4">Upload KML File</h2>
 
-        <div class="mb-4">
-          <label for="entity-type" class="block text-sm font-medium text-gray-700 mb-2">
-            Entity Type
-          </label>
-          <input
-            id="entity-type"
-            v-model="entityType"
-            type="text"
-            :disabled="!!query.type"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-            placeholder="Enter entity type (e.g., location, place)"
-            required
-          />
-        </div>
-
-        <div v-if="query.parent" class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            Parent Entity
-          </label>
-          <div class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 text-sm">
-            {{ parentName || `Loading parent (${query.parent})...` }}
-          </div>
-        </div>
-
         <div class="mb-6">
           <label for="kml-file" class="block text-sm font-medium text-gray-700 mb-2">
             Select KML File
@@ -50,7 +26,7 @@
 
         <button
           @click="parseKML"
-          :disabled="!selectedFile || !entityType || parsing"
+          :disabled="!selectedFile || parsing"
           class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
         >
           {{ parsing ? 'Parsing KML...' : 'Parse KML File' }}
@@ -128,14 +104,8 @@
 
       <!-- Step 3: Import Results -->
       <div v-if="step === 'results'" class="bg-white shadow rounded-lg p-6">
-        <div class="flex justify-between items-center mb-6">
+        <div class="mb-6">
           <h2 class="text-xl font-semibold text-gray-900">Import Results</h2>
-          <button
-            @click="startOver"
-            class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            Import Another File
-          </button>
         </div>
 
         <div v-if="importResults.success.length > 0" class="mb-6">
@@ -237,8 +207,8 @@ const { query } = route
 // Reactive state
 const step = ref('upload')
 const selectedFile = ref(null)
-const entityType = ref('')
-const parentName = ref('')
+
+
 const locations = ref([])
 const parsing = ref(false)
 const importing = ref(false)
@@ -262,12 +232,10 @@ const selectedCount = computed(() =>
   locations.value.filter(location => location.selected).length
 )
 
+
+
 // Initialize from URL parameters
 onMounted(async () => {
-  if (query.type) {
-    entityType.value = query.type
-  }
-
   // Validate required parameters
   if (!query.account) {
     error.value = 'Missing account parameter in URL'
@@ -283,57 +251,9 @@ onMounted(async () => {
     error.value = 'Missing type parameter in URL'
     return
   }
-
-  // Fetch parent name if parent is specified
-  if (query.parent) {
-    parentName.value = await fetchParentName(query.parent)
-  }
 })
 
-// Helper function to fetch parent entity name
-const fetchParentName = async (parentId) => {
-  if (!parentId) return ''
 
-  try {
-    const result = await fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity/${parentId}`, {
-      headers: {
-        Authorization: `Bearer ${query.token}`
-      }
-    })
-
-    if (!result.ok) {
-      console.warn(`Failed to fetch parent entity details: ${result.status} ${result.statusText}`)
-      return `Parent (${parentId})`
-    }
-
-    // Check if response is JSON before parsing
-    const contentType = result.headers.get('content-type')
-    if (!contentType || !contentType.includes('application/json')) {
-      console.warn('Parent entity API returned non-JSON response')
-      return `Parent (${parentId})`
-    }
-
-    // Additional safety check - try to parse JSON with explicit error handling
-    let entityData
-    try {
-      entityData = await result.json()
-    } catch (jsonError) {
-      console.warn('Failed to parse parent entity response as JSON:', jsonError)
-      return `Parent (${parentId})`
-    }
-
-    // Look for name in the entity structure
-    // The API returns: { entity: { name: [{ string: "actual name" }] } }
-    const entity = entityData.entity
-    const nameArray = entity?.name
-    const entityName = nameArray?.[0]?.string || `Parent (${parentId})`
-
-    return entityName
-  } catch (err) {
-    console.warn('Error fetching parent entity:', err)
-    return `Parent (${parentId})`
-  }
-}
 
 // Helper function to clean up HTML descriptions and convert links to markdown
 const cleanDescription = (description) => {
@@ -400,8 +320,8 @@ const handleFileSelect = (event) => {
 }
 
 const parseKML = async () => {
-  if (!selectedFile.value || !entityType.value) {
-    error.value = 'Please select a file and enter an entity type'
+  if (!selectedFile.value) {
+    error.value = 'Please select a file'
     return
   }
 
@@ -438,7 +358,7 @@ const parseKML = async () => {
           }
 
           const location = {
-            name: feature.properties?.name || '',
+            name: (feature.properties?.name || '').trim(),
             description: cleanDescription(feature.properties?.description),
             coordinates: coordinates, // [longitude, latitude]
             selected: true // Pre-checked as per requirements
@@ -515,7 +435,7 @@ const importSelected = async () => {
         }
 
         const entityData = {
-          type: entityType.value,
+          type: query.type,
           properties: {
             name: location.name || 'Unnamed Location',
             coordinates: {
@@ -561,7 +481,7 @@ const importSelected = async () => {
 const createEntity = async (entityData) => {
   // Prepare properties for Entu API
   const properties = [
-    { type: '_type', reference: query.type }
+    { type: '_type', string: query.type }
   ]
 
   // Add parent if specified in URL
@@ -571,22 +491,22 @@ const createEntity = async (entityData) => {
 
   // Add entity-specific properties
   if (entityData.properties.name) {
-    properties.push({ type: 'name', string: entityData.properties.name })
+    properties.push({ type: 'name', string: entityData.properties.name.trim() })
   }
 
   if (entityData.properties.description) {
-    properties.push({ type: 'description', string: entityData.properties.description })
+    properties.push({ type: 'kirjeldus', string: entityData.properties.description.trim() })
   }
 
   // Add coordinates as separate latitude and longitude properties
   if (entityData.properties.coordinates) {
     properties.push({
-      type: 'latitude',
-      decimal: entityData.properties.coordinates.latitude
+      type: 'lat',
+      number: entityData.properties.coordinates.latitude
     })
     properties.push({
-      type: 'longitude',
-      decimal: entityData.properties.coordinates.longitude
+      type: 'long',
+      number: entityData.properties.coordinates.longitude
     })
   }
 

@@ -12,7 +12,7 @@ This PRP proposes the creation of a new plugin that provides a user interface fo
 
 - A new page is available at `/kml`. The plugin receives `account`, `token`, `parent`, and `type` as URL query parameters.
 - The parent `kaart` (map) entity is identified by the `parent` URL parameter.
-- The entity type is configurable via the `type` URL parameter (e.g., `type=asukoht`).
+- The entity type is provided via the `type` URL parameter (e.g., `type=asukoht`) and used directly without user input.
 - The browser successfully parses the uploaded KML file using `@tmcw/togeojson` library in the browser.
 - After successful parsing, users are presented with a list of all locations found in the KML file with pre-checked checkboxes for selection.
 - Users can review, uncheck unwanted locations, and then proceed with the import of selected items only.
@@ -20,7 +20,7 @@ This PRP proposes the creation of a new plugin that provides a user interface fo
 - The `name`, `description`, and `coordinates` from the Placemark are mapped to the `name`, `kirjeldus`, `long`, and `lat` properties of the entity.
 - Elevation coordinates are ignored as specified.
 - Extended data and media links are ignored as specified.
-- Description is stored as-is without HTML parsing or cleaning.
+- Description HTML is cleaned: HTML tags are stripped, links are converted to markdown format, and line breaks are preserved.
 - Entities without coordinates are created without location data (processing continues).
 - Individual entity creation failures stop the entire import process with clear error feedback.
 - The newly created entities are linked to the parent entity via `_parent` property.
@@ -42,29 +42,30 @@ This component will handle the complete KML import process in the browser.
 ```vue
 <template>
   <div>
-    <!-- Use NUpload for file input (local processing, no server upload) -->
-    <!-- Show file name once selected -->
+    <!-- Standard HTML file input for KML file selection -->
+    <!-- Display file name once selected -->
     <!-- After parsing: Display list of locations with checkboxes (pre-checked) -->
     <!-- Allow users to review and uncheck unwanted locations -->
     <!-- Button to trigger import of selected items only -->
-    <!-- Real-time progress counter (X of Y selected processed) -->
+    <!-- Real-time progress feedback during import -->
     <!-- Clear error messages with retry option on failures -->
   </div>
 </template>
 
 <script setup>
-// 1. Imports (Naive UI components + @tmcw/togeojson)
-import { kml } from '@tmcw/togeojson'
+// 1. Imports (Vue composables + @tmcw/togeojson)
+import * as toGeoJSON from '@tmcw/togeojson'
 
 // 2. Get `account`, `token`, `parent`, and `type` from URL query parameters
 // 3. State management (file object, parsed locations, selected items, loading state, progress, results)
-// 4. `handleFileUpload` function to capture and process the file locally
-// 5. `parseKMLFile` function:
+// 4. `handleFileSelect` function to capture the file selection
+// 5. `parseKML` function:
 //    - Read file content as text using FileReader API
-//    - Parse XML using DOMParser: new DOMParser().parseFromString(xml, "text/xml")
-//    - Convert to GeoJSON using: kml(parsedXML)
+//    - Parse XML using DOMParser: new DOMParser().parseFromString(xml, "application/xml")
+//    - Convert to GeoJSON using: toGeoJSON.kml(parsedXML)
+//    - Clean description HTML and convert links to markdown
 //    - Display locations list with pre-checked checkboxes
-// 6. `doImport` function:
+// 6. `importSelected` function:
 //    - Validate that locations are selected
 //    - For each selected feature, create Entu entity
 //    - Direct API calls to Entu from browser
@@ -77,8 +78,8 @@ import { kml } from '@tmcw/togeojson'
 **Architecture Change:** All processing happens in the browser:
 
 - **File Reading**: FileReader API reads KML content as text
-- **XML Parsing**: Browser's native DOMParser
-- **KML Conversion**: `@tmcw/togeojson` library using `kml(new DOMParser().parseFromString(xml, "text/xml"))`
+- **XML Parsing**: Browser's native DOMParser with "application/xml" MIME type
+- **KML Conversion**: `@tmcw/togeojson` library using `toGeoJSON.kml(new DOMParser().parseFromString(xml, "application/xml"))`
 - **API Calls**: Direct fetch calls to Entu API from browser
 - **Authentication**: Use provided token directly in Authorization headers
 
@@ -91,8 +92,8 @@ reader.onload = (event) => {
   const xml = event.target.result
 
   // Parse and convert
-  const doc = new DOMParser().parseFromString(xml, "text/xml")
-  const geoJSON = kml(doc)
+  const doc = new DOMParser().parseFromString(xml, "application/xml")
+  const geoJSON = toGeoJSON.kml(doc)
 
   // Process features
   geoJSON.features.forEach(feature => {
@@ -157,7 +158,7 @@ reader.readAsText(file)
 | KML Element | GeoJSON Path | Entu Property | Notes |
 |-------------|--------------|---------------|-------|
 | `<name>` | `feature.properties.name` | `name` | Optional |
-| `<description>` | `feature.properties.description` | `kirjeldus` | Stored as-is, no HTML processing |
+| `<description>` | `feature.properties.description` | `kirjeldus` | HTML cleaned, links converted to markdown |
 | `<coordinates>` longitude | `feature.geometry.coordinates[0]` | `long` | Required for location entities |
 | `<coordinates>` latitude | `feature.geometry.coordinates[1]` | `lat` | Required for location entities |
 | `<coordinates>` elevation | `feature.geometry.coordinates[2]` | *ignored* | As per requirements |
@@ -166,20 +167,21 @@ reader.readAsText(file)
 
 ### 4.3. File Processing Workflow
 
-1. **Upload**: User selects KML file via NUpload component (local processing only)
+1. **Upload**: User selects KML file via HTML file input (local processing only)
 2. **File Reading**: FileReader API reads file content as text
-3. **XML Parsing**: Browser's DOMParser parses KML XML
-4. **Conversion**: `@tmcw/togeojson` converts KML DOM to GeoJSON using `kml(parsedXML)`
-5. **Review**: Display list of all found locations with pre-checked checkboxes for user selection
-6. **Selection**: Users can uncheck unwanted locations before import
-7. **Processing**: For each selected feature in the list:
+3. **XML Parsing**: Browser's DOMParser parses KML XML with "application/xml" MIME type
+4. **Conversion**: `@tmcw/togeojson` converts KML DOM to GeoJSON using `toGeoJSON.kml(parsedXML)`
+5. **Description Processing**: Clean HTML content, convert links to markdown format, preserve line breaks
+6. **Review**: Display list of all found locations with pre-checked checkboxes for user selection
+7. **Selection**: Users can uncheck unwanted locations before import
+8. **Processing**: For each selected feature in the list:
 
    - Extract name, description, coordinates
    - Build Entu properties array
    - Direct fetch to Entu API: `${entuUrl}/api/${account}/entity`
    - Stop processing on any individual entity failure
 
-8. **Feedback**: Progress updates and error messages with retry option
+9. **Feedback**: Progress updates and error messages with retry option
 
 ### 4.4. Error Handling Matrix
 
