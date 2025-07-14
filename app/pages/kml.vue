@@ -22,6 +22,15 @@
           />
         </div>
 
+        <div v-if="query.parent" class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Parent Entity
+          </label>
+          <div class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 text-sm">
+            {{ parentName || `Loading parent (${query.parent})...` }}
+          </div>
+        </div>
+
         <div class="mb-6">
           <label for="kml-file" class="block text-sm font-medium text-gray-700 mb-2">
             Select KML File
@@ -229,6 +238,7 @@ const { query } = route
 const step = ref('upload')
 const selectedFile = ref(null)
 const entityType = ref('')
+const parentName = ref('')
 const locations = ref([])
 const parsing = ref(false)
 const importing = ref(false)
@@ -253,7 +263,7 @@ const selectedCount = computed(() =>
 )
 
 // Initialize from URL parameters
-onMounted(() => {
+onMounted(async () => {
   if (query.type) {
     entityType.value = query.type
   }
@@ -273,7 +283,57 @@ onMounted(() => {
     error.value = 'Missing type parameter in URL'
     return
   }
+
+  // Fetch parent name if parent is specified
+  if (query.parent) {
+    parentName.value = await fetchParentName(query.parent)
+  }
 })
+
+// Helper function to fetch parent entity name
+const fetchParentName = async (parentId) => {
+  if (!parentId) return ''
+
+  try {
+    const result = await fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity/${parentId}`, {
+      headers: {
+        Authorization: `Bearer ${query.token}`
+      }
+    })
+
+    if (!result.ok) {
+      console.warn(`Failed to fetch parent entity details: ${result.status} ${result.statusText}`)
+      return `Parent (${parentId})`
+    }
+
+    // Check if response is JSON before parsing
+    const contentType = result.headers.get('content-type')
+    if (!contentType || !contentType.includes('application/json')) {
+      console.warn('Parent entity API returned non-JSON response')
+      return `Parent (${parentId})`
+    }
+
+    // Additional safety check - try to parse JSON with explicit error handling
+    let entityData
+    try {
+      entityData = await result.json()
+    } catch (jsonError) {
+      console.warn('Failed to parse parent entity response as JSON:', jsonError)
+      return `Parent (${parentId})`
+    }
+
+    // Look for name in the entity structure
+    // The API returns: { entity: { name: [{ string: "actual name" }] } }
+    const entity = entityData.entity
+    const nameArray = entity?.name
+    const entityName = nameArray?.[0]?.string || `Parent (${parentId})`
+
+    return entityName
+  } catch (err) {
+    console.warn('Error fetching parent entity:', err)
+    return `Parent (${parentId})`
+  }
+}
 
 // Helper function to clean up HTML descriptions and convert links to markdown
 const cleanDescription = (description) => {
