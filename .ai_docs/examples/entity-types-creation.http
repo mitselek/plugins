@@ -1,0 +1,255 @@
+# Create New Entity Types in Entu
+# This file contains HTTP requests to create the new entity types defined in F001-entu-entity-types.md
+
+@host = entu.app
+@account = esmuuseum
+@token = {{esm_token}}
+@esmuuseumEntityId = 66b6245c7efc9ac06a437ba0
+@entityEntityDefinitionId = 66b624597efc9ac06a437840
+@propertyEntityDefinitionId = 66b6245a7efc9ac06a437a42
+
+###
+# 0. Authenticate to get token
+# @name auth
+GET https://{{host}}/api/auth?account={{account}}
+Authorization: Bearer {{esm_key}}
+
+### Account
+GET https://{{host}}/api/{{account}} HTTP/1.1
+Accept-Encoding: deflate
+Authorization: Bearer {{esm_token}}
+
+# A. Create entity types for the ESMuseum account
+
+###
+# 1. Create Kaart entity type
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+    {"_id": "686913e11749f351b9c82f1c"},
+    {"type": "_type", "reference": "{{entityEntityDefinitionId}}"},
+    {"type": "name", "string": "kaart"},
+    {"type": "label", "string": "Kaart", "language": "et"},
+    {"type": "label", "string": "Map", "language": "en"},
+    {"type": "label_plural", "string": "Kaardid", "language": "et"},
+    {"type": "label_plural", "string": "Maps", "language": "en"},
+    {"type": "_parent", "reference": "{{esmuuseumEntityId}}"}
+]
+
+###
+@kaartEntityDefinitionId = 686913e11749f351b9c82f1c
+
+### add "add from" to Kaart entity type
+POST https://{{host}}/api/{{account}}/entity/{{kaartEntityDefinitionId}} HTTP/1.1
+Accept-Encoding: deflate
+Authorization: Bearer {{token}}
+Content-Type: application/json; charset=utf-8
+
+[
+    {"type": "add_from", "reference": "{{esmuuseumEntityId}}"}
+]
+
+###
+# 2. Create Asukoht entity type
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+    {"type": "_type", "reference": "{{entityEntityDefinitionId}}"},
+    {"type": "name", "string": "asukoht"},
+    {"type": "label", "string": "Asukoht", "language": "et"},
+    {"type": "label", "string": "Location", "language": "en"},
+    {"type": "label_plural", "string": "Asukohad", "language": "et"},
+    {"type": "label_plural", "string": "Locations", "language": "en"},
+    {"type": "_parent", "reference": "{{esmuuseumEntityId}}"},
+    {"type": "add_from", "reference": "{{kaartEntityDefinitionId}}"}
+]
+
+###
+@asukohtEntityDefinitionId = 686914211749f351b9c82f28
+
+# B. Create property types
+
+## 1. Kaart entity type properties
+
+### 1.1. Create "name" property for Kaart entity type
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+    {"type": "_type", "reference": "{{propertyEntityDefinitionId}}"},
+    {"type": "_parent", "reference": "{{kaartEntityDefinitionId}}"},
+    {"type": "name", "string": "name"},
+    {"type": "label", "string": "Nimi", "language": "et"},
+    {"type": "label", "string": "Name", "language": "en"},
+    {"type": "type", "string": "string"},
+    {"type": "public", "boolean": true},
+    {"type": "search", "boolean": true},
+    {"type": "ordinal", "number": 1}
+]
+
+### 1.2. Create "kirjeldus" property for Kaart entity type
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+    {"type": "_type", "reference": "{{propertyEntityDefinitionId}}"},
+    {"type": "_parent", "reference": "{{kaartEntityDefinitionId}}"},
+    {"type": "name", "string": "kirjeldus"},
+    {"type": "label", "string": "Kirjeldus", "language": "et"},
+    {"type": "label", "string": "Description", "language": "en"},
+    {"type": "type", "string": "text"},
+    {"type": "public", "boolean": true},
+    {"type": "search", "boolean": true},
+    {"type": "ordinal", "number": 2}
+]
+
+### 1.3. Create "url" property for Kaart entity type
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+    {"type": "_type", "reference": "{{propertyEntityDefinitionId}}"},
+    {"type": "_parent", "reference": "{{kaartEntityDefinitionId}}"},
+    {"type": "name", "string": "url"},
+    {"type": "label", "string": "URL", "language": "et"},
+    {"type": "label", "string": "URL", "language": "en"},
+    {"type": "type", "string": "string"},
+    {"type": "public", "boolean": true},
+    {"type": "multilingual", "boolean": false},
+    {"type": "ordinal", "number": 3}
+]
+
+## 2. Asukoht entity type properties
+
+### 2.1. Create "name" property for Asukoht entity type
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+    {"type": "_type", "reference": "{{propertyEntityDefinitionId}}"},
+    {"type": "_parent", "reference": "{{asukohtEntityDefinitionId}}"},
+    {"type": "name", "string": "name"},
+    {"type": "label", "string": "Nimi", "language": "et"},
+    {"type": "label", "string": "Name", "language": "en"},
+    {"type": "type", "string": "string"},
+    {"type": "public", "boolean": true},
+    {"type": "search", "boolean": true},
+    {"type": "ordinal", "number": 1}
+]
+
+### 2.2. Create "kirjeldus" property for Asukoht entity type
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+    {"type": "_type", "reference": "{{propertyEntityDefinitionId}}"},
+    {"type": "_parent", "reference": "{{asukohtEntityDefinitionId}}"},
+    {"type": "name", "string": "kirjeldus"},
+    {"type": "label", "string": "Kirjeldus", "language": "et"},
+    {"type": "label", "string": "Description", "language": "en"},
+    {"type": "type", "string": "text"},
+    {"type": "public", "boolean": true},
+    {"type": "search", "boolean": true},
+    {"type": "ordinal", "number": 2}
+]
+
+### 2.3. Create "long" property for Asukoht entity type
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+    {"type": "_type", "reference": "{{propertyEntityDefinitionId}}"},
+    {"type": "_parent", "reference": "{{asukohtEntityDefinitionId}}"},
+    {"type": "name", "string": "long"},
+    {"type": "label", "string": "Pikkuskraad", "language": "et"},
+    {"type": "label", "string": "Longitude", "language": "en"},
+    {"type": "type", "string": "decimal"},
+    {"type": "public", "boolean": true},
+    {"type": "ordinal", "number": 3}
+]
+
+### 2.4. Create "lat" property for Asukoht entity type
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+    {"type": "_type", "reference": "{{propertyEntityDefinitionId}}"},
+    {"type": "_parent", "reference": "{{asukohtEntityDefinitionId}}"},
+    {"type": "name", "string": "lat"},
+    {"type": "label", "string": "Laiuskraad", "language": "et"},
+    {"type": "label", "string": "Latitude", "language": "en"},
+    {"type": "type", "string": "decimal"},
+    {"type": "public", "boolean": true},
+    {"type": "ordinal", "number": 4}
+]
+
+### 2.5. Create "photo" property for Asukoht entity type
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+    {"type": "_type", "reference": "{{propertyEntityDefinitionId}}"},
+    {"type": "_parent", "reference": "{{asukohtEntityDefinitionId}}"},
+    {"type": "name", "string": "photo"},
+    {"type": "label", "string": "Pilt", "language": "et"},
+    {"type": "label", "string": "Picture", "language": "en"},
+    {"type": "type", "string": "file"},
+    {"type": "public", "boolean": true},
+    {"type": "ordinal", "number": 5}
+]
+
+### 2.6. Create "link" property for Asukoht entity type
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+    {"type": "_type", "reference": "{{propertyEntityDefinitionId}}"},
+    {"type": "_parent", "reference": "{{asukohtEntityDefinitionId}}"},
+    {"type": "name", "string": "link"},
+    {"type": "label", "string": "Link", "language": "et"},
+    {"type": "label", "string": "Link", "language": "en"},
+    {"type": "type", "string": "string"},
+    {"type": "public", "boolean": true},
+    {"type": "multilingual", "boolean": false},
+    {"type": "ordinal", "number": 6}
+]
+
+### Entity GET kaart id's
+GET https://{{host}}/api/{{account}}/entity?_type.string=kaart&props=_id&limit=10000 HTTP/1.1
+Accept-Encoding: deflate
+Authorization: Bearer {{esm_token}}
+
+### Get entity
+GET https://{{host}}/api/{{account}}/entity/{{kaartEntityDefinitionId}} HTTP/1.1
+Accept-Encoding: deflate
+Authorization: Bearer {{esm_token}}
+
+### Define kaart entity id
+@kaartEId = 686913e11749f351b9c82f1
+
+### Create asukoht under kaart
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{esm_token}}
+Content-Type: application/json
+
+[
+  { "type": "_type", "reference": "{{asukohtEntityDefinitionId}}" },
+  { "type": "_parent", "reference": "{{kaartEId}}" },
+  { "type": "name", "string": "HOHOEmmaste metsavendade mälestusmärk kalmistul" },
+  { "type": "kirjeldus", "string": "Vaata lisa:\n[https://db.militaarmuuseum.ee/object/…030](https://db.militaarmuuseum.ee/object/h-0030)"},
+  { "type": "lat", "number": 58.7086361111111},
+  { "type": "long", "number": 22.6057916666667}
+]
