@@ -376,7 +376,7 @@ onMounted(async () => {
  * @param {string|Object} description - Raw description from KML
  * @returns {string} Cleaned description with markdown links
  */
-const cleanDescription = (description) => {
+function cleanDescription (description) {
   if (!description) return ''
 
   // Handle cases where description might be an object
@@ -439,7 +439,7 @@ const cleanDescription = (description) => {
  * File selection and parsing methods for KML import workflow
  */
 
-const handleFileSelect = (event) => {
+function handleFileSelect (event) {
   const file = event.target.files[0]
   if (file) {
     selectedFile.value = file
@@ -447,7 +447,7 @@ const handleFileSelect = (event) => {
   }
 }
 
-const readFileAsText = (file) => {
+function readFileAsText (file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = (e) => resolve(e.target.result)
@@ -469,7 +469,7 @@ const readFileAsText = (file) => {
  *
  * @throws {Error} For invalid files, XML parsing errors, or no locations found
  */
-const parseKML = async () => {
+async function parseKML () {
   if (!selectedFile.value) {
     error.value = 'Please select a file'
     return
@@ -544,13 +544,13 @@ const parseKML = async () => {
  * Methods for managing location selection in the review step
  */
 
-const selectAll = () => {
+function selectAll () {
   locations.value.forEach((location) => {
     location.selected = true
   })
 }
 
-const selectNone = () => {
+function selectNone () {
   locations.value.forEach((location) => {
     location.selected = false
   })
@@ -562,12 +562,12 @@ const selectNone = () => {
  * Methods for navigating between workflow steps
  */
 
-const goBackToUpload = () => {
+function goBackToUpload () {
   step.value = STEPS.UPLOAD
   error.value = ''
 }
 
-const retryImport = async () => {
+async function retryImport () {
   // Go back to review step and allow user to retry import
   step.value = STEPS.REVIEW
   error.value = ''
@@ -592,7 +592,7 @@ const retryImport = async () => {
  *
  * @throws {Error} For validation failures or API errors
  */
-const importSelected = async () => {
+async function importSelected () {
   const selectedLocations = locations.value.filter(
     (location) => location.selected
   )
@@ -673,7 +673,7 @@ const importSelected = async () => {
  * @param {Object} entityData - Entity data with properties (name, description, coordinates)
  * @returns {string} - Created entity ID
  */
-const createEntity = async (entityData) => {
+async function createEntity (entityData) {
   // Prepare properties for Entu API
   const properties = [{ type: '_type', reference: query.type }]
 
