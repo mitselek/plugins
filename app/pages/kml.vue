@@ -744,125 +744,37 @@ async function createEntity (entityData) {
     })
   }
 
-  // GRACEFUL DEGRADATION STRATEGY: Try full content first, fallback to single image
+  // Add description if present
   if (entityData.properties.description) {
-    const originalDescription = entityData.properties.description
-    const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g
-    const images = originalDescription.match(imageRegex) || []
-
-    // ATTEMPT 1: Try with improved labels (image, image_2, image_3, ...)
-    try {
-      let improvedDescription = originalDescription
-
-      // Replace generic "Location Image" with numbered labels
-      let imageCount = 0
-      improvedDescription = improvedDescription.replace(imageRegex, (match, alt, url) => {
-        imageCount++
-        const newAlt = imageCount === 1 ? 'image' : `image_${imageCount}`
-        return `![${newAlt}](${url})`
-      })
-
-      // Basic safety checks
-      const MAX_DESCRIPTION_LENGTH = 20000
-      if (improvedDescription.length > MAX_DESCRIPTION_LENGTH) {
-        improvedDescription = improvedDescription.substring(0, MAX_DESCRIPTION_LENGTH) + '...'
-      }
-
-      const attempt1Properties = [...baseProperties, {
-        type: 'kirjeldus',
-        string: improvedDescription
-      }]
-
-      const response = await $fetch(
-        `${runtimeConfig.public.entuUrl}/api/${query.account}/entity`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${query.token}`
-          },
-          body: attempt1Properties
-        }
-      )
-
-      if (response && response._id) {
-        return response._id
-      }
-
-      throw new Error('Missing entity ID in response')
+    // Basic safety checks
+    let processedDescription = entityData.properties.description
+    const MAX_DESCRIPTION_LENGTH = 20000
+    if (processedDescription.length > MAX_DESCRIPTION_LENGTH) {
+      processedDescription = processedDescription.substring(0, MAX_DESCRIPTION_LENGTH) + '...'
     }
-    catch (attempt1Error) {
-      // ATTEMPT 2: Fallback to single image only
-      if (images.length > 1) {
-        let fallbackDescription = originalDescription
 
-        // Keep only the first image, remove others completely
-        let imageCount = 0
-        fallbackDescription = fallbackDescription.replace(imageRegex, (match, alt, url) => {
-          imageCount++
-          if (imageCount === 1) {
-            return `![image](${url})` // Keep first image with clean label
-          }
-          else {
-            return '' // Remove additional images completely
-          }
-        })
-
-        // Clean up extra whitespace
-        fallbackDescription = fallbackDescription.replace(/\n{3,}/g, '\n\n')
-        fallbackDescription = fallbackDescription.trim()
-
-        // Basic safety checks
-        const MAX_DESCRIPTION_LENGTH = 2000
-        if (fallbackDescription.length > MAX_DESCRIPTION_LENGTH) {
-          fallbackDescription = fallbackDescription.substring(0, MAX_DESCRIPTION_LENGTH) + '...'
-        }
-
-        const attempt2Properties = [...baseProperties, {
-          type: 'kirjeldus',
-          string: fallbackDescription
-        }]
-
-        const response = await $fetch(
-          `${runtimeConfig.public.entuUrl}/api/${query.account}/entity`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${query.token}`
-            },
-            body: attempt2Properties
-          }
-        )
-
-        if (response && response._id) {
-          return response._id
-        }
-
-        throw new Error('Missing entity ID in response')
-      }
-      else {
-        // If there's only one image and it still failed, throw the original error
-        throw attempt1Error
-      }
-    }
+    baseProperties.push({
+      type: 'kirjeldus',
+      text: processedDescription
+    })
   }
-  else {
-    // No description, create entity with just basic properties
-    const response = await $fetch(
-      `${runtimeConfig.public.entuUrl}/api/${query.account}/entity`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${query.token}`
-        },
-        body: baseProperties
-      }
-    )
 
-    if (response && response._id) {
-      return response._id
+  // Create entity with properties
+  const response = await $fetch(
+    `${runtimeConfig.public.entuUrl}/api/${query.account}/entity`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${query.token}`
+      },
+      body: baseProperties
     }
+  )
 
-    throw new Error('Missing entity ID in response')
+  if (response && response._id) {
+    return response._id
   }
+
+  throw new Error('Missing entity ID in response')
 }
 </script>
