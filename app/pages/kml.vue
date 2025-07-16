@@ -587,7 +587,7 @@ async function createEntity (entityData) {
       </div>
 
       <div
-        class="mb-6 max-h-96 overflow-y-auto rounded-md border border-gray-200"
+        class="mb-6 max-h-full overflow-y-auto rounded-md border border-gray-200"
       >
         <div
           v-for="(location, index) in locations"
