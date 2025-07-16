@@ -104,6 +104,7 @@ Content-Type: application/json
     {"type": "label", "string": "Kirjeldus", "language": "et"},
     {"type": "label", "string": "Description", "language": "en"},
     {"type": "type", "string": "text"},
+    {"type": "markdown", "boolean": true},
     {"type": "public", "boolean": true},
     {"type": "search", "boolean": true},
     {"type": "ordinal", "number": 2}
@@ -157,6 +158,7 @@ Content-Type: application/json
     {"type": "label", "string": "Kirjeldus", "language": "et"},
     {"type": "label", "string": "Description", "language": "en"},
     {"type": "type", "string": "text"},
+    {"type": "markdown", "boolean": true},
     {"type": "public", "boolean": true},
     {"type": "search", "boolean": true},
     {"type": "ordinal", "number": 2}
@@ -173,7 +175,7 @@ Content-Type: application/json
     {"type": "name", "string": "long"},
     {"type": "label", "string": "Pikkuskraad", "language": "et"},
     {"type": "label", "string": "Longitude", "language": "en"},
-    {"type": "type", "string": "decimal"},
+    {"type": "type", "string": "number"},
     {"type": "public", "boolean": true},
     {"type": "ordinal", "number": 3}
 ]
@@ -189,7 +191,7 @@ Content-Type: application/json
     {"type": "name", "string": "lat"},
     {"type": "label", "string": "Laiuskraad", "language": "et"},
     {"type": "label", "string": "Latitude", "language": "en"},
-    {"type": "type", "string": "decimal"},
+    {"type": "type", "string": "number"},
     {"type": "public", "boolean": true},
     {"type": "ordinal", "number": 4}
 ]
