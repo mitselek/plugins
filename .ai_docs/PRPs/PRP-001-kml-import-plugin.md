@@ -20,7 +20,7 @@ This PRP proposes the creation of a new plugin that provides a user interface fo
 - The `name`, `description`, and `coordinates` from the Placemark are mapped to the `name`, `kirjeldus`, `long`, and `lat` properties of the entity.
 - Elevation coordinates are ignored as specified.
 - Extended data and media links are ignored as specified.
-- Description HTML is cleaned: HTML tags are stripped, links are converted to markdown format, and line breaks are preserved.
+- Description HTML is converted to markdown using the Turndown library, which handles HTML tags, links, and preserves structure.
 - Entities without coordinates are created without location data (processing continues).
 - Individual entity creation failures stop the entire import process with clear error feedback.
 - The newly created entities are linked to the parent entity via `_parent` property.
@@ -53,8 +53,9 @@ This component will handle the complete KML import process in the browser.
 </template>
 
 <script setup>
-// 1. Imports (Vue composables + @tmcw/togeojson)
+// 1. Imports (Vue composables + @tmcw/togeojson + turndown)
 import * as toGeoJSON from '@tmcw/togeojson'
+import TurndownService from 'turndown'
 
 // 2. Step constants for clarity and maintainability
 const STEPS = { UPLOAD: 'upload', REVIEW: 'review', RESULTS: 'results' }
@@ -66,7 +67,7 @@ const STEPS = { UPLOAD: 'upload', REVIEW: 'review', RESULTS: 'results' }
 //    - Read file content as text using FileReader API
 //    - Parse XML using DOMParser: new DOMParser().parseFromString(xml, "application/xml")
 //    - Convert to GeoJSON using: toGeoJSON.kml(parsedXML)
-//    - Clean description HTML and convert links to markdown
+//    - Convert description HTML to markdown using Turndown library
 //    - Display locations list with pre-checked checkboxes
 // 7. `importSelected` function:
 //    - Validate that locations are selected
@@ -161,7 +162,7 @@ reader.readAsText(file)
 | KML Element | GeoJSON Path | Entu Property | Notes |
 |-------------|--------------|---------------|-------|
 | `<name>` | `feature.properties.name` | `name` | Optional |
-| `<description>` | `feature.properties.description` | `kirjeldus` | HTML cleaned, links converted to markdown |
+| `<description>` | `feature.properties.description` | `kirjeldus` | HTML converted to markdown using Turndown |
 | `<coordinates>` longitude | `feature.geometry.coordinates[0]` | `long` | Required for location entities |
 | `<coordinates>` latitude | `feature.geometry.coordinates[1]` | `lat` | Required for location entities |
 | `<coordinates>` elevation | `feature.geometry.coordinates[2]` | *ignored* | As per requirements |
@@ -174,7 +175,7 @@ reader.readAsText(file)
 2. **File Reading**: FileReader API reads file content as text
 3. **XML Parsing**: Browser's DOMParser parses KML XML with "application/xml" MIME type
 4. **Conversion**: `@tmcw/togeojson` converts KML DOM to GeoJSON using `toGeoJSON.kml(parsedXML)`
-5. **Description Processing**: Clean HTML content, convert links to markdown format, preserve line breaks
+5. **Description Processing**: Convert HTML content to markdown using Turndown library with custom rules for images, links, and line breaks to preserve proper formatting and structure
 6. **Review**: Display list of all found locations with pre-checked checkboxes for user selection
 7. **Selection**: Users can uncheck unwanted locations before import
 8. **Processing**: For each selected feature in the list:
@@ -198,7 +199,15 @@ reader.readAsText(file)
 | Authentication failure | Stop processing | Authentication error |
 | Network timeout | Stop processing | Network error with retry option |
 
-### 4.5. Performance Considerations
+### 4.5. Dependencies
+
+- **@tmcw/togeojson**: Used for KML to GeoJSON conversion
+- **turndown**: HTML-to-Markdown conversion library for processing descriptions, with custom configurations:
+  - Custom rules for handling line breaks to preserve paragraph structure
+  - Custom rules for images to ensure they're displayed properly
+  - Enhanced handling of formatted text and links
+
+### 4.6. Performance Considerations
 
 - **File Size**: Tested with files up to 470KB (276+ placemarks)
 - **Batch Processing**: Sequential API calls (no parallel to avoid rate limits)
