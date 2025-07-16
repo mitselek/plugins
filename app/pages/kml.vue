@@ -196,11 +196,11 @@
           <div class="rounded-md border border-red-200 bg-red-50 p-4">
             <ul class="list-inside list-disc space-y-1">
               <li
-                v-for="error in importResults.errors"
-                :key="error.name"
+                v-for="errorItem in importResults.errors"
+                :key="errorItem.name"
                 class="text-sm text-red-700"
               >
-                {{ error.name || "Unnamed Location" }}: {{ error.error }}
+                {{ errorItem.name || "Unnamed Location" }}: {{ errorItem.error }}
               </li>
             </ul>
           </div>

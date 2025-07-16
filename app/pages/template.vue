@@ -179,7 +179,7 @@ async function doImport () {
 
   importing.value = true
 
-  const { account, token, parent } = query
+  const { account, token } = query
 
   const entityData = await $fetch('/api/template', {
     query: {

@@ -7,7 +7,7 @@ defineProps({
 
 <template>
   <nuxt-icon
-    class="text-md"
+    class="text-base"
     filled
     :name="icon"
   />
@@ -15,6 +15,6 @@ defineProps({
 
 <style>
 .nuxt-icon svg {
-  @apply m-0;
+  margin: 0;
 }
 </style>
