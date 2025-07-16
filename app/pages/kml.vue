@@ -25,10 +25,16 @@
         :custom-request="kmlUpload"
         :show-file-list="false"
         accept=".kml,.xml"
+        :multiple="false"
+        :directory="false"
+        @change="handleFileChange"
       >
         <n-upload-dragger
           class="flex flex-col items-center justify-center gap-2 rounded-none"
           :class="{ 'h-96': !selectedFile }"
+          @dragover.prevent
+          @dragenter.prevent
+          @drop.prevent="handleDrop"
         >
           Click or drag a KML file to this area to upload.
 
@@ -337,10 +343,6 @@ const importResults = ref({
   skipped: 0
 })
 
-// TEMPLATE REFS
-// ======================================
-// Removed fileInput ref as we're using NaiveUI upload component
-
 // COMPUTED PROPERTIES
 // ======================================
 const hasSelectedLocations = computed(() =>
@@ -388,22 +390,12 @@ onMounted(async () => {
 function convertToMarkdown (description) {
   if (!description) return ''
 
-  // Handle cases where description might be an object
-  let htmlContent = ''
-  if (typeof description === 'string') {
-    htmlContent = description
-  }
-  else if (typeof description === 'object' && description.value) {
-    // Handle structured description objects like { "@type": "html", "value": "..." }
-    htmlContent = description.value
-  }
-  else if (typeof description === 'object') {
-    // Try to extract any string content from the object
-    htmlContent = description.toString()
-  }
-  else {
-    return ''
-  }
+  // Extract HTML content from description
+  const htmlContent = typeof description === 'string'
+    ? description
+    : description?.value || description?.toString() || ''
+
+  if (!htmlContent) return ''
 
   // Convert HTML to Markdown using Turndown with custom configuration
   const turndownService = new TurndownService({
@@ -461,12 +453,34 @@ function convertToMarkdown (description) {
  */
 
 function kmlUpload (data) {
-  selectedFile.value = data.file?.file
-  error.value = ''
+  const file = data.file?.file || data.file
 
-  // Automatically start parsing when file is uploaded
-  if (selectedFile.value) {
+  if (file) {
+    selectedFile.value = file
+    error.value = ''
     parseKML()
+  }
+}
+
+function handleFileChange (data) {
+  const file = data.fileList?.[0]?.file
+  if (file) {
+    selectedFile.value = file
+    error.value = ''
+    parseKML()
+  }
+}
+
+function handleDrop (event) {
+  const file = event.dataTransfer.files?.[0]
+
+  if (file && (file.name.toLowerCase().endsWith('.kml') || file.name.toLowerCase().endsWith('.xml'))) {
+    selectedFile.value = file
+    error.value = ''
+    parseKML()
+  }
+  else {
+    error.value = 'Please select a KML or XML file'
   }
 }
 
