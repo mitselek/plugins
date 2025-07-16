@@ -8,15 +8,25 @@
 -->
 <template>
   <div class="container mx-auto px-4 py-8">
-    <div class="max-w-4xl mx-auto">
-      <h1 class="text-3xl font-bold text-gray-900 mb-8">KML Import</h1>
+    <div class="mx-auto max-w-4xl">
+      <h1 class="mb-8 text-3xl font-bold text-gray-900">
+        KML Import
+      </h1>
 
       <!-- Step 1: File Upload -->
-      <div v-if="step === STEPS.UPLOAD" class="bg-white shadow rounded-lg p-6">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Upload KML File</h2>
+      <div
+        v-if="step === STEPS.UPLOAD"
+        class="rounded-lg bg-white p-6 shadow"
+      >
+        <h2 class="mb-4 text-xl font-semibold text-gray-900">
+          Upload KML File
+        </h2>
 
         <div class="mb-6">
-          <label for="kml-file" class="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            for="kml-file"
+            class="mb-2 block text-sm font-medium text-gray-700"
+          >
             Select KML File
           </label>
           <input
@@ -24,30 +34,35 @@
             ref="fileInput"
             type="file"
             accept=".kml,.xml"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
             @change="handleFileSelect"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
+          >
           <p class="mt-2 text-sm text-gray-500">
             Select a KML file to import locations from.
           </p>
         </div>
 
         <button
-          @click="parseKML"
           :disabled="!selectedFile || parsing"
-          class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+          class="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
+          @click="parseKML"
         >
-          {{ parsing ? 'Parsing KML...' : 'Parse KML File' }}
+          {{ parsing ? "Parsing KML..." : "Parse KML File" }}
         </button>
       </div>
 
       <!-- Step 2: Review Locations -->
-      <div v-if="step === STEPS.REVIEW" class="bg-white shadow rounded-lg p-6">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl font-semibold text-gray-900">Review Locations</h2>
+      <div
+        v-if="step === STEPS.REVIEW"
+        class="rounded-lg bg-white p-6 shadow"
+      >
+        <div class="mb-6 flex items-center justify-between">
+          <h2 class="text-xl font-semibold text-gray-900">
+            Review Locations
+          </h2>
           <button
+            class="text-blue-600 underline hover:text-blue-800"
             @click="goBackToUpload"
-            class="text-blue-600 hover:text-blue-800 underline"
           >
             Back to Upload
           </button>
@@ -55,44 +70,54 @@
 
         <div class="mb-4 flex items-center justify-between">
           <p class="text-sm text-gray-600">
-            Found {{ locations.length }} location(s). Select which ones to import:
+            Found {{ locations.length }} location(s). Select which ones to
+            import:
           </p>
           <div class="flex gap-2">
             <button
+              class="text-sm text-blue-600 underline hover:text-blue-800"
               @click="selectAll"
-              class="text-sm text-blue-600 hover:text-blue-800 underline"
             >
               Select All
             </button>
             <button
+              class="text-sm text-blue-600 underline hover:text-blue-800"
               @click="selectNone"
-              class="text-sm text-blue-600 hover:text-blue-800 underline"
             >
               Select None
             </button>
           </div>
         </div>
 
-        <div class="mb-6 max-h-96 overflow-y-auto border border-gray-200 rounded-md">
+        <div
+          class="mb-6 max-h-96 overflow-y-auto rounded-md border border-gray-200"
+        >
           <div
             v-for="(location, index) in locations"
             :key="index"
-            class="flex items-start p-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+            class="flex items-start border-b border-gray-100 p-3 last:border-b-0 hover:bg-gray-50"
           >
             <input
               :id="`location-${index}`"
               v-model="location.selected"
               type="checkbox"
-              class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <div class="ml-3 flex-1 min-w-0">
-              <label :for="`location-${index}`" class="block text-sm font-medium text-gray-900 cursor-pointer">
-                {{ location.name || 'Unnamed Location' }}
+              class="mt-1 size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            >
+            <div class="ml-3 min-w-0 flex-1">
+              <label
+                :for="`location-${index}`"
+                class="block cursor-pointer text-sm font-medium text-gray-900"
+              >
+                {{ location.name || "Unnamed Location" }}
               </label>
               <p class="text-sm text-gray-500">
-                Coordinates: {{ location.coordinates[1].toFixed(6) }}, {{ location.coordinates[0].toFixed(6) }}
+                Coordinates: {{ location.coordinates[1].toFixed(6) }},
+                {{ location.coordinates[0].toFixed(6) }}
               </p>
-              <p v-if="location.description" class="text-sm text-gray-600 mt-1">
+              <p
+                v-if="location.description"
+                class="mt-1 text-sm text-gray-600"
+              >
                 {{ location.description }}
               </p>
             </div>
@@ -101,40 +126,59 @@
 
         <div class="flex gap-4">
           <button
-            @click="importSelected"
             :disabled="!hasSelectedLocations || importing"
-            class="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            class="flex-1 rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
+            @click="importSelected"
           >
-            {{ importing ? 'Importing...' : `Import ${selectedCount} Selected Location(s)` }}
+            {{
+              importing
+                ? "Importing..."
+                : `Import ${selectedCount} Selected Location(s)`
+            }}
           </button>
         </div>
       </div>
 
       <!-- Step 3: Import Results -->
-      <div v-if="step === STEPS.RESULTS" class="bg-white shadow rounded-lg p-6">
+      <div
+        v-if="step === STEPS.RESULTS"
+        class="rounded-lg bg-white p-6 shadow"
+      >
         <div class="mb-6">
-          <h2 class="text-xl font-semibold text-gray-900">Import Results</h2>
+          <h2 class="text-xl font-semibold text-gray-900">
+            Import Results
+          </h2>
         </div>
 
-        <div v-if="importResults.success.length > 0" class="mb-6">
-          <h3 class="text-lg font-medium text-green-800 mb-2">
+        <div
+          v-if="importResults.success.length > 0"
+          class="mb-6"
+        >
+          <h3 class="mb-2 text-lg font-medium text-green-800">
             Successfully Imported ({{ importResults.success.length }})
           </h3>
-          <div class="bg-green-50 border border-green-200 rounded-md p-4">
-            <ul class="list-disc list-inside space-y-1">
-              <li v-for="result in importResults.success" :key="result.name" class="text-sm text-green-700">
+          <div class="rounded-md border border-green-200 bg-green-50 p-4">
+            <ul class="list-inside list-disc space-y-1">
+              <li
+                v-for="result in importResults.success"
+                :key="result.name"
+                class="text-sm text-green-700"
+              >
                 <a
                   v-if="result.entityId"
                   :href="`${runtimeConfig.public.entuUrl}/${query.account}/${result.entityId}#edit`"
                   target="_blank"
-                  class="text-green-600 hover:text-green-800 underline"
+                  class="text-green-600 underline hover:text-green-800"
                 >
-                  {{ result.name || 'Unnamed Location' }}
+                  {{ result.name || "Unnamed Location" }}
                 </a>
                 <span v-else>
-                  {{ result.name || 'Unnamed Location' }}
+                  {{ result.name || "Unnamed Location" }}
                 </span>
-                <span v-if="result.entityId" class="text-green-600 ml-1">
+                <span
+                  v-if="result.entityId"
+                  class="ml-1 text-green-600"
+                >
                   (ID: {{ result.entityId }})
                 </span>
               </li>
@@ -142,24 +186,42 @@
           </div>
         </div>
 
-        <div v-if="importResults.errors.length > 0" class="mb-6">
-          <h3 class="text-lg font-medium text-red-800 mb-2">
+        <div
+          v-if="importResults.errors.length > 0"
+          class="mb-6"
+        >
+          <h3 class="mb-2 text-lg font-medium text-red-800">
             Import Errors ({{ importResults.errors.length }})
           </h3>
-          <div class="bg-red-50 border border-red-200 rounded-md p-4">
-            <ul class="list-disc list-inside space-y-1">
-              <li v-for="error in importResults.errors" :key="error.name" class="text-sm text-red-700">
-                {{ error.name || 'Unnamed Location' }}: {{ error.error }}
+          <div class="rounded-md border border-red-200 bg-red-50 p-4">
+            <ul class="list-inside list-disc space-y-1">
+              <li
+                v-for="error in importResults.errors"
+                :key="error.name"
+                class="text-sm text-red-700"
+              >
+                {{ error.name || "Unnamed Location" }}: {{ error.error }}
               </li>
             </ul>
           </div>
         </div>
 
-        <div v-if="importResults.stopped" class="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4">
+        <div
+          v-if="importResults.stopped"
+          class="mb-6 rounded-md border border-yellow-200 bg-yellow-50 p-4"
+        >
           <div class="flex">
-            <div class="flex-shrink-0">
-              <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            <div class="shrink-0">
+              <svg
+                class="size-5 text-yellow-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clip-rule="evenodd"
+                />
               </svg>
             </div>
             <div class="ml-3 flex-1">
@@ -167,15 +229,18 @@
                 Import Stopped
               </h3>
               <div class="mt-2 text-sm text-yellow-700">
-                <p>Import was stopped after the first error occurred. {{ importResults.skipped }} location(s) were not processed.</p>
+                <p>
+                  Import was stopped after the first error occurred.
+                  {{ importResults.skipped }} location(s) were not processed.
+                </p>
               </div>
               <div class="mt-4">
                 <button
-                  @click="retryImport"
                   :disabled="importing"
-                  class="bg-yellow-600 text-white py-1 px-3 rounded text-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  class="rounded bg-yellow-600 px-3 py-1 text-sm text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
+                  @click="retryImport"
                 >
-                  {{ importing ? 'Importing...' : 'Retry Failed Import' }}
+                  {{ importing ? "Importing..." : "Retry Failed Import" }}
                 </button>
               </div>
             </div>
@@ -184,15 +249,28 @@
       </div>
 
       <!-- Error Display -->
-      <div v-if="error" class="mt-6 bg-red-50 border border-red-200 rounded-md p-4">
+      <div
+        v-if="error"
+        class="mt-6 rounded-md border border-red-200 bg-red-50 p-4"
+      >
         <div class="flex">
-          <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          <div class="shrink-0">
+            <svg
+              class="size-5 text-red-400"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clip-rule="evenodd"
+              />
             </svg>
           </div>
           <div class="ml-3">
-            <h3 class="text-sm font-medium text-red-800">Error</h3>
+            <h3 class="text-sm font-medium text-red-800">
+              Error
+            </h3>
             <div class="mt-2 text-sm text-red-700">
               <p>{{ error }}</p>
             </div>
@@ -255,11 +333,11 @@ const fileInput = ref(null)
 // COMPUTED PROPERTIES
 // ======================================
 const hasSelectedLocations = computed(() =>
-  locations.value.some(location => location.selected)
+  locations.value.some((location) => location.selected)
 )
 
-const selectedCount = computed(() =>
-  locations.value.filter(location => location.selected).length
+const selectedCount = computed(
+  () => locations.value.filter((location) => location.selected).length
 )
 
 // LIFECYCLE HOOKS
@@ -305,13 +383,16 @@ const cleanDescription = (description) => {
   let htmlContent = ''
   if (typeof description === 'string') {
     htmlContent = description
-  } else if (typeof description === 'object' && description.value) {
+  }
+  else if (typeof description === 'object' && description.value) {
     // Handle structured description objects like { "@type": "html", "value": "..." }
     htmlContent = description.value
-  } else if (typeof description === 'object') {
+  }
+  else if (typeof description === 'object') {
     // Try to extract any string content from the object
     htmlContent = description.toString()
-  } else {
+  }
+  else {
     return ''
   }
 
@@ -324,7 +405,7 @@ const cleanDescription = (description) => {
 
   // Convert links to markdown format before extracting text
   const links = tempDiv.querySelectorAll('a')
-  links.forEach(link => {
+  links.forEach((link) => {
     const href = link.getAttribute('href')
     const text = link.textContent || link.innerText || href
 
@@ -344,8 +425,8 @@ const cleanDescription = (description) => {
   // Clean up extra whitespace but preserve line breaks
   // First normalize line breaks, then clean up spaces
   return textContent
-    .replace(/\r\n/g, '\n')  // normalize Windows line breaks
-    .replace(/\r/g, '\n')    // normalize Mac line breaks
+    .replace(/\r\n/g, '\n') // normalize Windows line breaks
+    .replace(/\r/g, '\n') // normalize Mac line breaks
     .replace(/[ \t]+/g, ' ') // collapse spaces and tabs, but keep newlines
     .replace(/\n\s*/g, '\n') // clean up spaces after line breaks
     .replace(/\n{3,}/g, '\n\n') // limit consecutive line breaks to max 2
@@ -370,7 +451,7 @@ const readFileAsText = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = (e) => resolve(e.target.result)
-    reader.onerror = (e) => reject(new Error('Failed to read file'))
+    reader.onerror = () => reject(new Error('Failed to read file'))
     reader.readAsText(file)
   })
 }
@@ -420,9 +501,14 @@ const parseKML = async () => {
           const coordinates = feature.geometry.coordinates
 
           // Validate coordinates
-          if (!Array.isArray(coordinates) || coordinates.length < 2 ||
-              typeof coordinates[0] !== 'number' || typeof coordinates[1] !== 'number' ||
-              isNaN(coordinates[0]) || isNaN(coordinates[1])) {
+          if (
+            !Array.isArray(coordinates)
+            || coordinates.length < 2
+            || typeof coordinates[0] !== 'number'
+            || typeof coordinates[1] !== 'number'
+            || isNaN(coordinates[0])
+            || isNaN(coordinates[1])
+          ) {
             continue // Skip invalid coordinates
           }
 
@@ -443,9 +529,11 @@ const parseKML = async () => {
 
     locations.value = extractedLocations
     step.value = STEPS.REVIEW
-  } catch (err) {
+  }
+  catch (err) {
     error.value = `Failed to parse KML file: ${err.message}`
-  } finally {
+  }
+  finally {
     parsing.value = false
   }
 }
@@ -457,13 +545,13 @@ const parseKML = async () => {
  */
 
 const selectAll = () => {
-  locations.value.forEach(location => {
+  locations.value.forEach((location) => {
     location.selected = true
   })
 }
 
 const selectNone = () => {
-  locations.value.forEach(location => {
+  locations.value.forEach((location) => {
     location.selected = false
   })
 }
@@ -483,24 +571,6 @@ const retryImport = async () => {
   // Go back to review step and allow user to retry import
   step.value = STEPS.REVIEW
   error.value = ''
-}
-
-const startOver = () => {
-  step.value = STEPS.UPLOAD
-  selectedFile.value = null
-  locations.value = []
-  error.value = ''
-  importResults.value = {
-    success: [],
-    errors: [],
-    stopped: false,
-    skipped: 0
-  }
-
-  // Reset file input
-  if (fileInput.value) {
-    fileInput.value.value = ''
-  }
 }
 
 // API INTERACTION METHODS
@@ -523,7 +593,9 @@ const startOver = () => {
  * @throws {Error} For validation failures or API errors
  */
 const importSelected = async () => {
-  const selectedLocations = locations.value.filter(location => location.selected)
+  const selectedLocations = locations.value.filter(
+    (location) => location.selected
+  )
 
   if (selectedLocations.length === 0) {
     error.value = 'Please select at least one location to import'
@@ -571,7 +643,8 @@ const importSelected = async () => {
           name: location.name,
           entityId: entityId
         })
-      } catch (err) {
+      }
+      catch (err) {
         const errorMessage = err.message || 'Unknown error occurred'
         importResults.value.errors.push({
           name: location.name,
@@ -586,9 +659,11 @@ const importSelected = async () => {
     }
 
     step.value = STEPS.RESULTS
-  } catch (err) {
+  }
+  catch (err) {
     error.value = `Import failed: ${err.message}`
-  } finally {
+  }
+  finally {
     importing.value = false
   }
 }
@@ -600,9 +675,7 @@ const importSelected = async () => {
  */
 const createEntity = async (entityData) => {
   // Prepare properties for Entu API
-  const properties = [
-    { type: '_type', reference: query.type }
-  ]
+  const properties = [{ type: '_type', reference: query.type }]
 
   // Add parent if specified in URL
   if (query.parent) {
@@ -611,11 +684,17 @@ const createEntity = async (entityData) => {
 
   // Add entity-specific properties
   if (entityData.properties.name) {
-    properties.push({ type: 'name', string: entityData.properties.name.trim() })
+    properties.push({
+      type: 'name',
+      string: entityData.properties.name.trim()
+    })
   }
 
   if (entityData.properties.description) {
-    properties.push({ type: 'kirjeldus', string: entityData.properties.description.trim() })
+    properties.push({
+      type: 'kirjeldus',
+      string: entityData.properties.description.trim()
+    })
   }
 
   // Add coordinates as separate latitude and longitude properties
@@ -631,14 +710,17 @@ const createEntity = async (entityData) => {
   }
 
   // Make API call to create entity
-  const result = await fetch(`${runtimeConfig.public.entuUrl}/api/${query.account}/entity`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${query.token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(properties)
-  })
+  const result = await fetch(
+    `${runtimeConfig.public.entuUrl}/api/${query.account}/entity`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${query.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(properties)
+    }
+  )
 
   if (!result.ok) {
     const errorText = await result.text()
