@@ -240,7 +240,7 @@ Accept-Encoding: deflate
 Authorization: Bearer {{esm_token}}
 
 ### Define kaart entity id
-@kaartEId = 686913e11749f351b9c82f1
+@kaartEId = 686938681749f351b9c830c8
 
 ### Create asukoht under kaart
 POST https://{{host}}/api/{{account}}/entity
@@ -251,7 +251,21 @@ Content-Type: application/json
   { "type": "_type", "reference": "{{asukohtEntityDefinitionId}}" },
   { "type": "_parent", "reference": "{{kaartEId}}" },
   { "type": "name", "string": "HOHOEmmaste metsavendade mälestusmärk kalmistul" },
-  { "type": "kirjeldus", "string": "Vaata lisa:\n[https://db.militaarmuuseum.ee/object/…030](https://db.militaarmuuseum.ee/object/h-0030)"},
+  { "type": "kirjeldus", "description": "![Location Image](https://mymaps.usercontent.google.com/hostedimage/m/*/3ADbDBKsAzbbYy07T8TBtDV7Av3abgkx88P10v9B_J8jiQSpXV6UtH4Kpgl8wTz9yrjYdVla86uC34Q7q37VgOIcoQNS7ksMpyzYxKHNpXJQPWnnlCHWifrn2Yl9WUy9o36jKV3KG_k8vSq7k8xCkSB2BCZoA2vTxWEGWO22KhrODG-za2FSMasruJ74j9bJMd0gn61iIeddDFHr-qgo?authuser=0&fife=s16383)\n\nRooduvarjend nr 1 asub otse Vääna-Kumna tee ääres, u 1 km Humala mõisast põhja pool. Varjendisse sissepääs suletud (nahkhiirte talvitumiskoht), eravaldus.\n\nVAATA LISA:\n\n[https://db.esap.ee/object/p-0010](https://db.esap.ee/object/p-0010)\n\n![Location Image](https://mymaps.usercontent.google.com/hostedimage/m/*/3ADbDBKts1YLcGHUtt0ewPeF0qZ-_XTUN1jahUatpnVPbf9GdBl1PtzinZYndzBTthwNZVRQglWGCPHw9j0yZX1dOMxObs9M1-UHQoTZzsJCTaiqdv0H_VhAiLBmgbxC4QfJhNvi5h6I2T2ZP4KD1j6gbc6ZRhTym0YwiBK1teg4vn3falEc2djo_0LvG9V2idEjBaKwfcWVWzsZRsVA?authuser=0&fife=s16383)"},
   { "type": "lat", "number": 58.7086361111111},
   { "type": "long", "number": 22.6057916666667}
 ]
+
+### Delete all asukoht entities under specific kaart
+#### 1. select all 'asukoht' type childs under kaart
+GET https://{{host}}/api/{{account}}/entity?_parent.reference={{kaartEId}}&_type.string=asukoht&props=_id HTTP/1.1
+Accept-Encoding: deflate
+Authorization: Bearer {{esm_token}}
+####
+@asukohtEId = 6877abe2a025d86170966f3e
+#### 2. delete asukoht entities one by one
+DELETE https://{{host}}/api/{{account}}/entity/{{asukohtEId}} HTTP/1.1
+Accept-Encoding: deflate
+Authorization: Bearer {{esm_token}}
+Content-Type: application/json; charset=utf-8
+
