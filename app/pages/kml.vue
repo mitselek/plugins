@@ -686,14 +686,14 @@ const createEntity = async (entityData) => {
   if (entityData.properties.name) {
     properties.push({
       type: 'name',
-      string: entityData.properties.name.trim()
+      string: entityData.properties.name
     })
   }
 
   if (entityData.properties.description) {
     properties.push({
       type: 'kirjeldus',
-      string: entityData.properties.description.trim()
+      string: entityData.properties.description
     })
   }
 
