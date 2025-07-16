@@ -124,7 +124,7 @@
           </div>
         </div>
 
-        <div class="flex gap-4">
+        <div class="flex flex-col gap-4">
           <button
             :disabled="!hasSelectedLocations || importing"
             class="flex-1 rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
@@ -132,10 +132,23 @@
           >
             {{
               importing
-                ? "Importing..."
+                ? `Importing... ${importProgress.current}/${importProgress.total} (${importProgress.percentage}%)`
                 : `Import ${selectedCount} Selected Location(s)`
             }}
           </button>
+
+          <!-- Progress bar (visible only during import) -->
+          <div
+            v-if="importing"
+            class="w-full"
+          >
+            <div class="h-2 w-full rounded-full bg-gray-200">
+              <div
+                class="h-2 rounded-full bg-green-600 transition-all duration-300 ease-in-out"
+                :style="{ width: importProgress.percentage + '%' }"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -318,6 +331,11 @@ const locations = ref([])
 const parsing = ref(false)
 const importing = ref(false)
 const error = ref('')
+const importProgress = ref({
+  current: 0,
+  total: 0,
+  percentage: 0
+})
 
 // Import results tracking
 const importResults = ref({
@@ -622,6 +640,13 @@ async function importSelected () {
     skipped: 0
   }
 
+  // Reset and initialize progress tracking
+  importProgress.value = {
+    current: 0,
+    total: selectedLocations.length,
+    percentage: 0
+  }
+
   try {
     for (let i = 0; i < selectedLocations.length; i++) {
       const location = selectedLocations[i]
@@ -654,6 +679,12 @@ async function importSelected () {
           name: location.name,
           entityId: entityId
         })
+
+        // Update progress
+        importProgress.value.current++
+        importProgress.value.percentage = Math.round(
+          (importProgress.value.current / importProgress.value.total) * 100
+        )
       }
       catch (err) {
         const errorMessage = err.message || 'Unknown error occurred'
