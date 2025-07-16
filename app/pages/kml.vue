@@ -36,7 +36,7 @@
           @dragenter.prevent
           @drop.prevent="handleDrop"
         >
-          Click or drag a KML file to this area to upload.
+          {{ t('uploadText') }}
 
           <div
             v-if="selectedFile"
@@ -59,33 +59,32 @@
     <div v-if="step === STEPS.REVIEW">
       <div class="mb-6 flex items-center justify-between">
         <h2 class="text-xl font-semibold text-gray-900">
-          Review Locations
+          {{ t('reviewLocations') }}
         </h2>
         <button
           class="text-blue-600 underline hover:text-blue-800"
           @click="goBackToUpload"
         >
-          Back to Upload
+          {{ t('backToUpload') }}
         </button>
       </div>
 
       <div class="mb-4 flex items-center justify-between">
         <p class="text-sm text-gray-600">
-          Found {{ locations.length }} location(s). Select which ones to
-          import:
+          {{ t('foundLocations', locations.length) }}
         </p>
         <div class="flex gap-2">
           <button
             class="text-sm text-blue-600 underline hover:text-blue-800"
             @click="selectAll"
           >
-            Select All
+            {{ t('selectAll') }}
           </button>
           <button
             class="text-sm text-blue-600 underline hover:text-blue-800"
             @click="selectNone"
           >
-            Select None
+            {{ t('selectNone') }}
           </button>
         </div>
       </div>
@@ -109,10 +108,10 @@
               :for="`location-${index}`"
               class="block cursor-pointer text-sm font-medium text-gray-900"
             >
-              {{ location.name || "Unnamed Location" }}
+              {{ location.name || t('unnamedLocation') }}
             </label>
             <p class="text-sm text-gray-500">
-              Coordinates: {{ location.coordinates[1].toFixed(6) }},
+              {{ t('coordinates') }}: {{ location.coordinates[1].toFixed(6) }},
               {{ location.coordinates[0].toFixed(6) }}
             </p>
             <p
@@ -133,8 +132,8 @@
         >
           {{
             importing
-              ? `Importing... ${importProgress.current}/${importProgress.total} (${importProgress.percentage}%)`
-              : `Import ${selectedCount} Selected Location(s)`
+              ? t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
+              : t('importSelected', selectedCount)
           }}
         </button>
 
@@ -157,7 +156,7 @@
     <div v-if="step === STEPS.RESULTS">
       <div class="mb-6">
         <h2 class="text-xl font-semibold text-gray-900">
-          Import Results
+          {{ t('importResults') }}
         </h2>
       </div>
 
@@ -166,7 +165,7 @@
         class="mb-6"
       >
         <h3 class="mb-2 text-lg font-medium text-green-800">
-          Successfully Imported ({{ importResults.success.length }})
+          {{ t('successfullyImported', importResults.success.length) }}
         </h3>
         <div class="rounded-md border border-green-200 bg-green-50 p-4">
           <ul class="list-inside list-disc space-y-1">
@@ -181,10 +180,10 @@
                 target="_blank"
                 class="text-green-600 underline hover:text-green-800"
               >
-                {{ result.name || "Unnamed Location" }}
+                {{ result.name || t('unnamedLocation') }}
               </a>
               <span v-else>
-                {{ result.name || "Unnamed Location" }}
+                {{ result.name || t('unnamedLocation') }}
               </span>
               <span
                 v-if="result.entityId"
@@ -202,7 +201,7 @@
         class="mb-6"
       >
         <h3 class="mb-2 text-lg font-medium text-red-800">
-          Import Errors ({{ importResults.errors.length }})
+          {{ t('importErrors', importResults.errors.length) }}
         </h3>
         <div class="rounded-md border border-red-200 bg-red-50 p-4">
           <ul class="list-inside list-disc space-y-1">
@@ -211,7 +210,7 @@
               :key="errorItem.name"
               class="text-sm text-red-700"
             >
-              {{ errorItem.name || "Unnamed Location" }}: {{ errorItem.error }}
+              {{ errorItem.name || t('unnamedLocation') }}: {{ errorItem.error }}
             </li>
           </ul>
         </div>
@@ -237,12 +236,11 @@
           </div>
           <div class="ml-3 flex-1">
             <h3 class="text-sm font-medium text-yellow-800">
-              Import Stopped
+              {{ t('importStopped') }}
             </h3>
             <div class="mt-2 text-sm text-yellow-700">
               <p>
-                Import was stopped after the first error occurred.
-                {{ importResults.skipped }} location(s) were not processed.
+                {{ t('importStoppedMessage', { skipped: importResults.skipped }) }}
               </p>
             </div>
             <div class="mt-4">
@@ -251,7 +249,7 @@
                 class="rounded bg-yellow-600 px-3 py-1 text-sm text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
                 @click="retryImport"
               >
-                {{ importing ? "Importing..." : "Retry Failed Import" }}
+                {{ importing ? t('importing') : t('retryFailedImport') }}
               </button>
             </div>
           </div>
@@ -280,7 +278,7 @@
         </div>
         <div class="ml-3">
           <h3 class="text-sm font-medium text-red-800">
-            Error
+            {{ t('error') }}
           </h3>
           <div class="mt-2 text-sm text-red-700">
             <p>{{ error }}</p>
@@ -309,6 +307,7 @@ import { NUpload, NUploadDragger, NSpin } from 'naive-ui'
 
 // CONFIGURATION AND CONSTANTS
 // ======================================
+const { t } = useI18n()
 const runtimeConfig = useRuntimeConfig()
 const route = useRoute()
 const { query } = route
@@ -359,17 +358,17 @@ const selectedCount = computed(
 onMounted(async () => {
   // Validate required parameters
   if (!query.account) {
-    error.value = 'Missing account parameter in URL'
+    error.value = t('errorNoAccount')
     return
   }
 
   if (!query.token) {
-    error.value = 'Missing token parameter in URL'
+    error.value = t('errorNoToken')
     return
   }
 
   if (!query.type) {
-    error.value = 'Missing type parameter in URL'
+    error.value = t('errorNoType')
     return
   }
 })
@@ -480,7 +479,7 @@ function handleDrop (event) {
     parseKML()
   }
   else {
-    error.value = 'Please select a KML or XML file'
+    error.value = t('errorInvalidFile')
   }
 }
 
@@ -508,7 +507,7 @@ function readFileAsText (file) {
  */
 async function parseKML () {
   if (!selectedFile.value) {
-    error.value = 'Please select a file'
+    error.value = t('errorSelectFile')
     return
   }
 
@@ -635,7 +634,7 @@ async function importSelected () {
   )
 
   if (selectedLocations.length === 0) {
-    error.value = 'Please select at least one location to import'
+    error.value = t('errorSelectOneLocation')
     return
   }
 
@@ -668,7 +667,7 @@ async function importSelected () {
         const entityData = {
           type: query.type,
           properties: {
-            name: location.name || 'Unnamed Location',
+            name: location.name || t('unnamedLocation'),
             coordinates: {
               latitude: location.coordinates[1],
               longitude: location.coordinates[0]
@@ -786,3 +785,56 @@ async function createEntity (entityData) {
   throw new Error('Missing entity ID in response')
 }
 </script>
+
+<i18n lang="yaml">
+en:
+  errorNoAccount: "No account parameter!"
+  errorNoType: "No type parameter!"
+  errorNoToken: "No token parameter!"
+  errorInvalidFile: "Please select a KML or XML file"
+  errorSelectFile: "Please select a file"
+  errorSelectOneLocation: "Please select at least one location to import"
+  uploadText: "Click or drag a KML file to this area to upload."
+  reviewLocations: "Review Locations"
+  backToUpload: "Back to Upload"
+  foundLocations: "Found {n} location(s). Select which ones to import:"
+  selectAll: "Select All"
+  selectNone: "Select None"
+  unnamedLocation: "Unnamed Location"
+  coordinates: "Coordinates"
+  importSelected: "Import | Import {n} Selected Location | Import {n} Selected Locations"
+  importingProgress: "Importing... {current}/{total} ({percentage}%)"
+  importing: "Importing..."
+  importResults: "Import Results"
+  successfullyImported: "Successfully Imported ({n})"
+  importErrors: "Import Errors ({n})"
+  importStopped: "Import Stopped"
+  importStoppedMessage: "Import was stopped after the first error occurred. {skipped} location(s) were not processed."
+  retryFailedImport: "Retry Failed Import"
+  error: "Error"
+et:
+  errorNoAccount: "Puudub parameeter \"account\"!"
+  errorNoType: "Puudub parameeter \"type\"!"
+  errorNoToken: "Puudub parameeter \"token\"!"
+  errorInvalidFile: "Palun valige KML või XML fail"
+  errorSelectFile: "Palun valige fail"
+  errorSelectOneLocation: "Palun valige vähemalt üks asukoht importimiseks"
+  uploadText: "Lohista KML fail siia või klõpsa siin, et fail valida."
+  reviewLocations: "Asukohtade ülevaade"
+  backToUpload: "Tagasi üleslaadimisele"
+  foundLocations: "Leitud {n} asukoht(a). Valige, millised importida:"
+  selectAll: "Vali kõik"
+  selectNone: "Tühista valik"
+  unnamedLocation: "Nimetu asukoht"
+  coordinates: "Koordinaadid"
+  importSelected: "Impordi | Impordi {n} valitud asukoht | Impordi {n} valitud asukohta"
+  importingProgress: "Importimine... {current}/{total} ({percentage}%)"
+  importing: "Importimine..."
+  importResults: "Importimise tulemused"
+  successfullyImported: "Edukalt imporditud ({n})"
+  importErrors: "Importimise vead ({n})"
+  importStopped: "Importimine peatatud"
+  importStoppedMessage: "Importimine peatati pärast esimest viga. {skipped} asukoht(a) jäi töötlemata."
+  retryFailedImport: "Proovi ebaõnnestunud importi uuesti"
+  error: "Viga"
+</i18n>
