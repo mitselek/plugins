@@ -720,25 +720,18 @@ async function createEntity (entityData) {
     })
   }
 
-  // Make API call to create entity
-  const result = await fetch(
+  // Make API call to create entity using Nuxt's $fetch utility
+  const response = await $fetch(
     `${runtimeConfig.public.entuUrl}/api/${query.account}/entity`,
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${query.token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${query.token}`
       },
-      body: JSON.stringify(properties)
+      body: properties // $fetch handles JSON.stringify automatically
     }
   )
 
-  if (!result.ok) {
-    const errorText = await result.text()
-    throw new Error(`API request failed (${result.status}): ${errorText}`)
-  }
-
-  const response = await result.json()
   return response._id
 }
 </script>
