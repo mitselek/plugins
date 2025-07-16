@@ -166,7 +166,7 @@
               >
                 <a
                   v-if="result.entityId"
-                  :href="`${runtimeConfig.public.entuUrl}/${query.account}/${result.entityId}#edit`"
+                  :href="`${runtimeConfig.public.entuUrl}/${query.account}/${result.entityId}`"
                   target="_blank"
                   class="text-green-600 underline hover:text-green-800"
                 >
@@ -294,6 +294,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import * as toGeoJSON from '@tmcw/togeojson'
+import TurndownService from 'turndown'
 
 // CONFIGURATION AND CONSTANTS
 // ======================================
@@ -364,19 +365,17 @@ onMounted(async () => {
 // UTILITY FUNCTIONS
 // ======================================
 /**
- * Cleans HTML content from KML descriptions and converts to markdown
+ * Converts HTML content from KML descriptions to markdown
  *
- * Process:
- * 1. Handles string, object, or structured description formats
- * 2. Strips HTML tags while preserving content
- * 3. Converts <a> links to markdown [text](url) format
- * 4. Converts plain URLs to markdown links
- * 5. Normalizes whitespace and line breaks
+ * Uses Turndown library to handle conversion of HTML to markdown:
+ * - Converts HTML tags to appropriate markdown syntax
+ * - Properly handles links, lists, formatting
+ * - Maintains structure while removing HTML complexity
  *
  * @param {string|Object} description - Raw description from KML
- * @returns {string} Cleaned description with markdown links
+ * @returns {string} Description converted to markdown format
  */
-function cleanDescription (description) {
+function convertToMarkdown (description) {
   if (!description) return ''
 
   // Handle cases where description might be an object
@@ -396,41 +395,53 @@ function cleanDescription (description) {
     return ''
   }
 
-  // Create a temporary DOM element to work with the HTML
-  const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = htmlContent
+  // Convert HTML to Markdown using Turndown with custom configuration
+  const turndownService = new TurndownService({
+    headingStyle: 'atx', // Use # style headings
+    codeBlockStyle: 'fenced', // Use ``` style code blocks
+    hr: '---', // Use --- for horizontal rules
+    bulletListMarker: '-', // Use - for bullet lists
+    emDelimiter: '_' // Use _underscore_ for emphasis
+  })
 
-  // Convert <br> tags to newlines before processing links
-  tempDiv.innerHTML = tempDiv.innerHTML.replace(/<br\s*\/?>/gi, '\n')
-
-  // Convert links to markdown format before extracting text
-  const links = tempDiv.querySelectorAll('a')
-  links.forEach((link) => {
-    const href = link.getAttribute('href')
-    const text = link.textContent || link.innerText || href
-
-    if (href) {
-      // Replace the link element with markdown format [text](url)
-      const markdownLink = `[${text}](${href})`
-      link.outerHTML = markdownLink
+  // Add custom rule for line breaks to preserve paragraph structure better
+  turndownService.addRule('lineBreaks', {
+    filter: ['br'],
+    replacement: function () {
+      return '\n\n' // Simple newline instead of hardcoded line breaks
     }
   })
 
-  // Also handle plain URLs that aren't wrapped in <a> tags
-  let textContent = tempDiv.textContent || tempDiv.innerText || ''
+  // Improve image handling - place images on their own line
+  turndownService.addRule('images', {
+    filter: 'img',
+    replacement: function (content, node) {
+      const alt = node.getAttribute('alt') || 'Location Image'
+      const src = node.getAttribute('src') || ''
+      return '\n\n![' + alt + '](' + src + ')\n\n'
+    }
+  })
 
-  // Convert plain URLs to markdown links (basic pattern)
-  textContent = textContent.replace(/(https?:\/\/[^\s]+)/g, '[$1]($1)')
+  // Convert and clean up the result
+  let markdown = turndownService.turndown(htmlContent)
 
-  // Clean up extra whitespace but preserve line breaks
-  // First normalize line breaks, then clean up spaces
-  return textContent
-    .replace(/\r\n/g, '\n') // normalize Windows line breaks
-    .replace(/\r/g, '\n') // normalize Mac line breaks
-    .replace(/[ \t]+/g, ' ') // collapse spaces and tabs, but keep newlines
-    .replace(/\n\s*/g, '\n') // clean up spaces after line breaks
-    .replace(/\n{3,}/g, '\n\n') // limit consecutive line breaks to max 2
-    .trim()
+  // Clean up: convert consecutive line breaks to proper paragraph breaks
+  markdown = markdown.replace(/\n{3,}/g, '\n\n') // No more than 2 consecutive line breaks
+
+  // Second pass to ensure all URLs are converted to markdown links
+  // This catches any URLs that weren't handled by the Turndown rule
+  markdown = markdown.replace(
+    /(^|\s)(https?:\/\/[^\s\n]+)(?=\s|$|\n|\.)/g,
+    function (match, p1, p2) {
+      // Don't convert URLs that are already in markdown link format
+      if (match.indexOf('[') !== -1 && match.indexOf('](') !== -1) {
+        return match
+      }
+      return p1 + '[' + p2 + '](' + p2 + ')'
+    }
+  )
+
+  return markdown
 }
 
 // FILE HANDLING METHODS
@@ -464,7 +475,7 @@ function readFileAsText (file) {
  * 2. Parse XML using DOMParser with application/xml MIME type
  * 3. Convert KML to GeoJSON using @tmcw/togeojson library
  * 4. Extract Point geometries with valid coordinates
- * 5. Clean descriptions and prepare location objects
+ * 5. Convert descriptions to markdown format
  * 6. Transition to review step with pre-selected locations
  *
  * @throws {Error} For invalid files, XML parsing errors, or no locations found
@@ -514,7 +525,7 @@ async function parseKML () {
 
           const location = {
             name: (feature.properties?.name || '').trim(),
-            description: cleanDescription(feature.properties?.description),
+            description: convertToMarkdown(feature.properties?.description),
             coordinates: coordinates, // [longitude, latitude]
             selected: true // Pre-checked as per requirements
           }
@@ -730,8 +741,4 @@ async function createEntity (entityData) {
   const response = await result.json()
   return response._id
 }
-
-// ======================================
-// END OF KML IMPORT PLUGIN
-// ======================================
 </script>
