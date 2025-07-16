@@ -1,294 +1,3 @@
-<!--
-  KML Import Plugin Template
-
-  Three-step wizard for importing KML files into Entu:
-  1. Upload: File selection and validation
-  2. Review: Location selection with checkboxes
-  3. Results: Import feedback and error handling
--->
-<template>
-  <div
-    v-if="error"
-    class="flex h-full max-h-full items-center justify-center font-bold text-red-700"
-  >
-    {{ error }}
-  </div>
-
-  <div
-    v-else
-    class="flex h-full max-h-full flex-col gap-6 overflow-auto p-6"
-  >
-    <!-- Step 1: File Upload -->
-    <div v-if="step === STEPS.UPLOAD">
-      <n-upload
-        v-if="!parsing"
-        :custom-request="kmlUpload"
-        :show-file-list="false"
-        accept=".kml,.xml"
-        :multiple="false"
-        :directory="false"
-        @change="handleFileChange"
-      >
-        <n-upload-dragger
-          class="flex flex-col items-center justify-center gap-2 rounded-none"
-          :class="{ 'h-96': !selectedFile }"
-          @dragover.prevent
-          @dragenter.prevent
-          @drop.prevent="handleDrop"
-        >
-          {{ t('uploadText') }}
-
-          <div
-            v-if="selectedFile"
-            class="font-bold"
-          >
-            {{ selectedFile.name }}
-          </div>
-        </n-upload-dragger>
-      </n-upload>
-
-      <div
-        v-if="parsing"
-        class="flex h-48 items-center justify-center"
-      >
-        <n-spin show />
-      </div>
-    </div>
-
-    <!-- Step 2: Review Locations -->
-    <div v-if="step === STEPS.REVIEW">
-      <div class="mb-6 flex items-center justify-between">
-        <h2 class="text-xl font-semibold text-gray-900">
-          {{ t('reviewLocations') }}
-        </h2>
-        <button
-          class="text-blue-600 underline hover:text-blue-800"
-          @click="goBackToUpload"
-        >
-          {{ t('backToUpload') }}
-        </button>
-      </div>
-
-      <div class="mb-4 flex items-center justify-between">
-        <p class="text-sm text-gray-600">
-          {{ t('foundLocations', locations.length) }}
-        </p>
-        <div class="flex gap-2">
-          <button
-            class="text-sm text-blue-600 underline hover:text-blue-800"
-            @click="selectAll"
-          >
-            {{ t('selectAll') }}
-          </button>
-          <button
-            class="text-sm text-blue-600 underline hover:text-blue-800"
-            @click="selectNone"
-          >
-            {{ t('selectNone') }}
-          </button>
-        </div>
-      </div>
-
-      <div
-        class="mb-6 max-h-96 overflow-y-auto rounded-md border border-gray-200"
-      >
-        <div
-          v-for="(location, index) in locations"
-          :key="index"
-          class="flex items-start border-b border-gray-100 p-3 last:border-b-0 hover:bg-gray-50"
-        >
-          <input
-            :id="`location-${index}`"
-            v-model="location.selected"
-            type="checkbox"
-            class="mt-1 size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          >
-          <div class="ml-3 min-w-0 flex-1">
-            <label
-              :for="`location-${index}`"
-              class="block cursor-pointer text-sm font-medium text-gray-900"
-            >
-              {{ location.name || t('unnamedLocation') }}
-            </label>
-            <p class="text-sm text-gray-500">
-              {{ t('coordinates') }}: {{ location.coordinates[1].toFixed(6) }},
-              {{ location.coordinates[0].toFixed(6) }}
-            </p>
-            <p
-              v-if="location.description"
-              class="mt-1 text-sm text-gray-600"
-            >
-              {{ location.description }}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex flex-col gap-4">
-        <button
-          :disabled="!hasSelectedLocations || importing"
-          class="flex-1 rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
-          @click="importSelected"
-        >
-          {{
-            importing
-              ? t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
-              : t('importSelected', selectedCount)
-          }}
-        </button>
-
-        <!-- Progress bar (visible only during import) -->
-        <div
-          v-if="importing"
-          class="w-full"
-        >
-          <div class="h-2 w-full rounded-full bg-gray-200">
-            <div
-              class="h-2 rounded-full bg-green-600 transition-all duration-300 ease-in-out"
-              :style="{ width: importProgress.percentage + '%' }"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Step 3: Import Results -->
-    <div v-if="step === STEPS.RESULTS">
-      <div class="mb-6">
-        <h2 class="text-xl font-semibold text-gray-900">
-          {{ t('importResults') }}
-        </h2>
-      </div>
-
-      <div
-        v-if="importResults.success.length > 0"
-        class="mb-6"
-      >
-        <h3 class="mb-2 text-lg font-medium text-green-800">
-          {{ t('successfullyImported', importResults.success.length) }}
-        </h3>
-        <div class="rounded-md border border-green-200 bg-green-50 p-4">
-          <ul class="list-inside list-disc space-y-1">
-            <li
-              v-for="result in importResults.success"
-              :key="result.name"
-              class="text-sm text-green-700"
-            >
-              <a
-                v-if="result.entityId"
-                :href="`${runtimeConfig.public.entuUrl}/${query.account}/${result.entityId}`"
-                target="_blank"
-                class="text-green-600 underline hover:text-green-800"
-              >
-                {{ result.name || t('unnamedLocation') }}
-              </a>
-              <span v-else>
-                {{ result.name || t('unnamedLocation') }}
-              </span>
-              <span
-                v-if="result.entityId"
-                class="ml-1 text-green-600"
-              >
-                (ID: {{ result.entityId }})
-              </span>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <div
-        v-if="importResults.errors.length > 0"
-        class="mb-6"
-      >
-        <h3 class="mb-2 text-lg font-medium text-red-800">
-          {{ t('importErrors', importResults.errors.length) }}
-        </h3>
-        <div class="rounded-md border border-red-200 bg-red-50 p-4">
-          <ul class="list-inside list-disc space-y-1">
-            <li
-              v-for="errorItem in importResults.errors"
-              :key="errorItem.name"
-              class="text-sm text-red-700"
-            >
-              {{ errorItem.name || t('unnamedLocation') }}: {{ errorItem.error }}
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <div
-        v-if="importResults.stopped"
-        class="mb-6 rounded-md border border-yellow-200 bg-yellow-50 p-4"
-      >
-        <div class="flex">
-          <div class="shrink-0">
-            <svg
-              class="size-5 text-yellow-400"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                clip-rule="evenodd"
-              />
-            </svg>
-          </div>
-          <div class="ml-3 flex-1">
-            <h3 class="text-sm font-medium text-yellow-800">
-              {{ t('importStopped') }}
-            </h3>
-            <div class="mt-2 text-sm text-yellow-700">
-              <p>
-                {{ t('importStoppedMessage', { skipped: importResults.skipped }) }}
-              </p>
-            </div>
-            <div class="mt-4">
-              <button
-                :disabled="importing"
-                class="rounded bg-yellow-600 px-3 py-1 text-sm text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
-                @click="retryImport"
-              >
-                {{ importing ? t('importing') : t('retryFailedImport') }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Error Display -->
-    <div
-      v-if="error"
-      class="mt-6 rounded-md border border-red-200 bg-red-50 p-4"
-    >
-      <div class="flex">
-        <div class="shrink-0">
-          <svg
-            class="size-5 text-red-400"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-              clip-rule="evenodd"
-            />
-          </svg>
-        </div>
-        <div class="ml-3">
-          <h3 class="text-sm font-medium text-red-800">
-            {{ t('error') }}
-          </h3>
-          <div class="mt-2 text-sm text-red-700">
-            <p>{{ error }}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup>
 /*
   KML Import Plugin Script
@@ -785,6 +494,297 @@ async function createEntity (entityData) {
   throw new Error('Missing entity ID in response')
 }
 </script>
+
+<!--
+  KML Import Plugin Template
+
+  Three-step wizard for importing KML files into Entu:
+  1. Upload: File selection and validation
+  2. Review: Location selection with checkboxes
+  3. Results: Import feedback and error handling
+-->
+<template>
+  <div
+    v-if="error"
+    class="flex h-full max-h-full items-center justify-center font-bold text-red-700"
+  >
+    {{ error }}
+  </div>
+
+  <div
+    v-else
+    class="flex h-full max-h-full flex-col gap-6 overflow-auto p-6"
+  >
+    <!-- Step 1: File Upload -->
+    <div v-if="step === STEPS.UPLOAD">
+      <n-upload
+        v-if="!parsing"
+        :custom-request="kmlUpload"
+        :show-file-list="false"
+        accept=".kml,.xml"
+        :multiple="false"
+        :directory="false"
+        @change="handleFileChange"
+      >
+        <n-upload-dragger
+          class="flex flex-col items-center justify-center gap-2 rounded-none"
+          :class="{ 'h-96': !selectedFile }"
+          @dragover.prevent
+          @dragenter.prevent
+          @drop.prevent="handleDrop"
+        >
+          {{ t('uploadText') }}
+
+          <div
+            v-if="selectedFile"
+            class="font-bold"
+          >
+            {{ selectedFile.name }}
+          </div>
+        </n-upload-dragger>
+      </n-upload>
+
+      <div
+        v-if="parsing"
+        class="flex h-48 items-center justify-center"
+      >
+        <n-spin show />
+      </div>
+    </div>
+
+    <!-- Step 2: Review Locations -->
+    <div v-if="step === STEPS.REVIEW">
+      <div class="mb-6 flex items-center justify-between">
+        <h2 class="text-xl font-semibold text-gray-900">
+          {{ t('reviewLocations') }}
+        </h2>
+        <button
+          class="text-blue-600 underline hover:text-blue-800"
+          @click="goBackToUpload"
+        >
+          {{ t('backToUpload') }}
+        </button>
+      </div>
+
+      <div class="mb-4 flex items-center justify-between">
+        <p class="text-sm text-gray-600">
+          {{ t('foundLocations', locations.length) }}
+        </p>
+        <div class="flex gap-2">
+          <button
+            class="text-sm text-blue-600 underline hover:text-blue-800"
+            @click="selectAll"
+          >
+            {{ t('selectAll') }}
+          </button>
+          <button
+            class="text-sm text-blue-600 underline hover:text-blue-800"
+            @click="selectNone"
+          >
+            {{ t('selectNone') }}
+          </button>
+        </div>
+      </div>
+
+      <div
+        class="mb-6 max-h-96 overflow-y-auto rounded-md border border-gray-200"
+      >
+        <div
+          v-for="(location, index) in locations"
+          :key="index"
+          class="flex items-start border-b border-gray-100 p-3 last:border-b-0 hover:bg-gray-50"
+        >
+          <input
+            :id="`location-${index}`"
+            v-model="location.selected"
+            type="checkbox"
+            class="mt-1 size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          >
+          <div class="ml-3 min-w-0 flex-1">
+            <label
+              :for="`location-${index}`"
+              class="block cursor-pointer text-sm font-medium text-gray-900"
+            >
+              {{ location.name || t('unnamedLocation') }}
+            </label>
+            <p class="text-sm text-gray-500">
+              {{ t('coordinates') }}: {{ location.coordinates[1].toFixed(6) }},
+              {{ location.coordinates[0].toFixed(6) }}
+            </p>
+            <p
+              v-if="location.description"
+              class="mt-1 text-sm text-gray-600"
+            >
+              {{ location.description }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-4">
+        <button
+          :disabled="!hasSelectedLocations || importing"
+          class="flex-1 rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
+          @click="importSelected"
+        >
+          {{
+            importing
+              ? t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
+              : t('importSelected', selectedCount)
+          }}
+        </button>
+
+        <!-- Progress bar (visible only during import) -->
+        <div
+          v-if="importing"
+          class="w-full"
+        >
+          <div class="h-2 w-full rounded-full bg-gray-200">
+            <div
+              class="h-2 rounded-full bg-green-600 transition-all duration-300 ease-in-out"
+              :style="{ width: importProgress.percentage + '%' }"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Import Results -->
+    <div v-if="step === STEPS.RESULTS">
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold text-gray-900">
+          {{ t('importResults') }}
+        </h2>
+      </div>
+
+      <div
+        v-if="importResults.success.length > 0"
+        class="mb-6"
+      >
+        <h3 class="mb-2 text-lg font-medium text-green-800">
+          {{ t('successfullyImported', importResults.success.length) }}
+        </h3>
+        <div class="rounded-md border border-green-200 bg-green-50 p-4">
+          <ul class="list-inside list-disc space-y-1">
+            <li
+              v-for="result in importResults.success"
+              :key="result.name"
+              class="text-sm text-green-700"
+            >
+              <a
+                v-if="result.entityId"
+                :href="`${runtimeConfig.public.entuUrl}/${query.account}/${result.entityId}`"
+                target="_blank"
+                class="text-green-600 underline hover:text-green-800"
+              >
+                {{ result.name || t('unnamedLocation') }}
+              </a>
+              <span v-else>
+                {{ result.name || t('unnamedLocation') }}
+              </span>
+              <span
+                v-if="result.entityId"
+                class="ml-1 text-green-600"
+              >
+                (ID: {{ result.entityId }})
+              </span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div
+        v-if="importResults.errors.length > 0"
+        class="mb-6"
+      >
+        <h3 class="mb-2 text-lg font-medium text-red-800">
+          {{ t('importErrors', importResults.errors.length) }}
+        </h3>
+        <div class="rounded-md border border-red-200 bg-red-50 p-4">
+          <ul class="list-inside list-disc space-y-1">
+            <li
+              v-for="errorItem in importResults.errors"
+              :key="errorItem.name"
+              class="text-sm text-red-700"
+            >
+              {{ errorItem.name || t('unnamedLocation') }}: {{ errorItem.error }}
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div
+        v-if="importResults.stopped"
+        class="mb-6 rounded-md border border-yellow-200 bg-yellow-50 p-4"
+      >
+        <div class="flex">
+          <div class="shrink-0">
+            <svg
+              class="size-5 text-yellow-400"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </div>
+          <div class="ml-3 flex-1">
+            <h3 class="text-sm font-medium text-yellow-800">
+              {{ t('importStopped') }}
+            </h3>
+            <div class="mt-2 text-sm text-yellow-700">
+              <p>
+                {{ t('importStoppedMessage', { skipped: importResults.skipped }) }}
+              </p>
+            </div>
+            <div class="mt-4">
+              <button
+                :disabled="importing"
+                class="rounded bg-yellow-600 px-3 py-1 text-sm text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
+                @click="retryImport"
+              >
+                {{ importing ? t('importing') : t('retryFailedImport') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Display -->
+    <div
+      v-if="error"
+      class="mt-6 rounded-md border border-red-200 bg-red-50 p-4"
+    >
+      <div class="flex">
+        <div class="shrink-0">
+          <svg
+            class="size-5 text-red-400"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+              clip-rule="evenodd"
+            />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <h3 class="text-sm font-medium text-red-800">
+            {{ t('error') }}
+          </h3>
+          <div class="mt-2 text-sm text-red-700">
+            <p>{{ error }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
 
 <i18n lang="yaml">
 en:
