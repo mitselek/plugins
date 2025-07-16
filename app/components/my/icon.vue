@@ -15,6 +15,6 @@ defineProps({
 
 <style>
 .nuxt-icon svg {
-  margin: 0;
+  @apply m-0;
 }
 </style>
