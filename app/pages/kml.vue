@@ -12,7 +12,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import * as toGeoJSON from '@tmcw/togeojson'
 import TurndownService from 'turndown'
-import { NUpload, NUploadDragger, NSpin } from 'naive-ui'
+import { NUpload, NUploadDragger, NSpin, NCheckbox, NButton } from 'naive-ui'
 
 // CONFIGURATION AND CONSTANTS
 // ======================================
@@ -558,12 +558,13 @@ async function createEntity (entityData) {
         <h2 class="text-xl font-semibold text-gray-900">
           {{ t('reviewLocations') }}
         </h2>
-        <button
-          class="text-blue-600 underline hover:text-blue-800"
+        <n-button
+          text
+          type="primary"
           @click="goBackToUpload"
         >
           {{ t('backToUpload') }}
-        </button>
+        </n-button>
       </div>
 
       <div class="mb-4 flex items-center justify-between">
@@ -571,18 +572,22 @@ async function createEntity (entityData) {
           {{ t('foundLocations', locations.length) }}
         </p>
         <div class="flex gap-2">
-          <button
-            class="text-sm text-blue-600 underline hover:text-blue-800"
+          <n-button
+            text
+            type="primary"
+            size="small"
             @click="selectAll"
           >
             {{ t('selectAll') }}
-          </button>
-          <button
-            class="text-sm text-blue-600 underline hover:text-blue-800"
+          </n-button>
+          <n-button
+            text
+            type="primary"
+            size="small"
             @click="selectNone"
           >
             {{ t('selectNone') }}
-          </button>
+          </n-button>
         </div>
       </div>
 
@@ -592,21 +597,19 @@ async function createEntity (entityData) {
         <div
           v-for="(location, index) in locations"
           :key="index"
-          class="flex items-start border-b border-gray-100 p-3 last:border-b-0 hover:bg-gray-50"
+          class="flex cursor-pointer items-start border-b border-gray-100 p-3 last:border-b-0 hover:bg-gray-50"
+          @click="location.selected = !location.selected"
         >
-          <input
-            :id="`location-${index}`"
-            v-model="location.selected"
-            type="checkbox"
-            class="mt-1 size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          >
+          <n-checkbox
+            v-model:checked="location.selected"
+            class="mt-1"
+            size="small"
+            @click.stop
+          />
           <div class="ml-3 min-w-0 flex-1">
-            <label
-              :for="`location-${index}`"
-              class="block cursor-pointer text-sm font-medium text-gray-900"
-            >
+            <p class="text-sm font-medium text-gray-900">
               {{ location.name || t('unnamedLocation') }}
-            </label>
+            </p>
             <p class="text-sm text-gray-500">
               {{ t('coordinates') }}: {{ location.coordinates[1].toFixed(6) }},
               {{ location.coordinates[0].toFixed(6) }}
@@ -622,9 +625,10 @@ async function createEntity (entityData) {
       </div>
 
       <div class="flex flex-col gap-4">
-        <button
+        <n-button
           :disabled="!hasSelectedLocations || importing"
-          class="flex-1 rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
+          type="primary"
+          size="large"
           @click="importSelected"
         >
           {{
@@ -632,7 +636,7 @@ async function createEntity (entityData) {
               ? t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
               : t('importSelected', selectedCount)
           }}
-        </button>
+        </n-button>
 
         <!-- Progress bar (visible only during import) -->
         <div
@@ -741,13 +745,14 @@ async function createEntity (entityData) {
               </p>
             </div>
             <div class="mt-4">
-              <button
+              <n-button
                 :disabled="importing"
-                class="rounded bg-yellow-600 px-3 py-1 text-sm text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
+                type="warning"
+                size="small"
                 @click="retryImport"
               >
                 {{ importing ? t('importing') : t('retryFailedImport') }}
-              </button>
+              </n-button>
             </div>
           </div>
         </div>
