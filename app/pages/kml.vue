@@ -35,11 +35,13 @@ const selectedFile = ref(null)
 const locations = ref([])
 const parsing = ref(false)
 const importing = ref(false)
+const paused = ref(false)
 const error = ref('')
 const importProgress = ref({
   current: 0,
   total: 0,
-  percentage: 0
+  percentage: 0,
+  pendingLocations: null
 })
 
 // Import results tracking
@@ -313,6 +315,22 @@ function selectNone () {
 function goBackToUpload () {
   step.value = STEPS.UPLOAD
   error.value = ''
+  // Reset the selected file to clear the UI
+  selectedFile.value = null
+}
+
+/**
+ * Toggles between pausing and resuming the import process
+ */
+function togglePause () {
+  if (importing.value) {
+    paused.value = !paused.value
+
+    if (!paused.value) {
+      // Resume import if unpaused
+      importSelected()
+    }
+  }
 }
 
 // API INTERACTION METHODS
@@ -329,44 +347,66 @@ function goBackToUpload () {
  * 2. Iterates through selected locations sequentially
  * 3. Creates entity data with name, description, and coordinates
  * 4. Calls createEntity API for each location
- * 5. Stops on first error (fail-fast approach)
- * 6. Shows imported locations directly in the review screen
+ * 5. Supports pause/resume functionality
+ * 6. Stops on first error (fail-fast approach)
+ * 7. Shows imported locations directly in the review screen
  *
  * @throws {Error} For validation failures or API errors
  */
 async function importSelected () {
-  const selectedLocations = locations.value.filter(
-    (location) => location.selected
-  )
+  // No action needed here for pause/resume - we'll handle it in togglePause
 
-  if (selectedLocations.length === 0) {
-    error.value = t('errorSelectOneLocation')
-    return
-  }
+  // First time starting the import
+  if (!importing.value) {
+    const selectedLocations = locations.value.filter(
+      (location) => location.selected
+    )
 
-  importing.value = true
-  error.value = ''
-  
-  // Remove unselected locations from view
-  locations.value = locations.value.filter((location) => location.selected || location.imported)
+    if (selectedLocations.length === 0) {
+      error.value = t('errorSelectOneLocation')
+      return
+    }
 
-  importResults.value = {
-    success: [],
-    errors: [],
-    stopped: false,
-    skipped: 0
-  }
+    importing.value = true
+    error.value = ''
+    paused.value = false
 
-  // Reset and initialize progress tracking
-  importProgress.value = {
-    current: 0,
-    total: selectedLocations.length,
-    percentage: 0
+    // Remove unselected locations from view
+    locations.value = locations.value.filter((location) => location.selected || location.imported)
+
+    importResults.value = {
+      success: [],
+      errors: [],
+      stopped: false,
+      skipped: 0
+    }
+
+    // Reset and initialize progress tracking
+    importProgress.value = {
+      current: 0,
+      total: selectedLocations.length,
+      percentage: 0,
+      pendingLocations: null // Will be initialized during the import process
+    }
   }
 
   try {
-    for (let i = 0; i < selectedLocations.length; i++) {
-      const location = selectedLocations[i]
+    // Store all pending locations to import in a stable array
+    // We'll only do this once when the import starts initially
+    if (!importProgress.value.pendingLocations) {
+      importProgress.value.pendingLocations = locations.value
+        .filter((location) => location.selected && !location.imported)
+        .map((location, index) => ({ location, index }))
+    }
+
+    // If we're resuming, we'll continue where we left off using our stable array
+    for (let i = importProgress.value.current; i < importProgress.value.pendingLocations.length; i++) {
+      // Check if paused
+      if (paused.value) {
+        return // Exit the function but maintain state for resume
+      }
+
+      const { location } = importProgress.value.pendingLocations[i]
 
       try {
         // Validate location data
@@ -393,6 +433,10 @@ async function importSelected () {
         const entityId = await createEntity(entityData)
 
         // Mark the original location as imported and store entityId
+        location.imported = true
+        location.entityId = entityId
+
+        // Also update the location in the main locations array
         const originalLocation = locations.value.find((loc) => {
           return loc.coordinates[0] === location.coordinates[0]
             && loc.coordinates[1] === location.coordinates[1]
@@ -423,11 +467,11 @@ async function importSelected () {
 
         // Stop on first error as per requirements
         importResults.value.stopped = true
-        importResults.value.skipped = selectedLocations.length - i - 1
+        importResults.value.skipped = importProgress.value.pendingLocations.length - i - 1
         break
       }
     }
-    
+
     // Show success message in the review screen
     if (importResults.value.errors.length === 0) {
       // Everything imported successfully
@@ -442,7 +486,12 @@ async function importSelected () {
     error.value = `Import failed: ${err.message}`
   }
   finally {
-    importing.value = false
+    // Only set importing to false if we're not paused
+    if (!paused.value) {
+      importing.value = false
+      // Clean up the pendingLocations when import completes
+      importProgress.value.pendingLocations = null
+    }
   }
 }
 
@@ -547,20 +596,12 @@ async function createEntity (entityData) {
         @change="handleFileChange"
       >
         <n-upload-dragger
-          class="flex flex-col items-center justify-center gap-2 rounded-none"
-          :class="{ 'h-96': !selectedFile }"
+          class="flex h-96 flex-col items-center justify-center gap-2 rounded-none"
           @dragover.prevent
           @dragenter.prevent
           @drop.prevent="handleDrop"
         >
           {{ t('uploadText') }}
-
-          <div
-            v-if="selectedFile"
-            class="font-bold"
-          >
-            {{ selectedFile.name }}
-          </div>
         </n-upload-dragger>
       </n-upload>
 
@@ -595,9 +636,9 @@ async function createEntity (entityData) {
             v-else
             text
             type="primary"
-            disabled
+            @click="togglePause"
           >
-            {{ t('pauseImport') }}
+            {{ paused ? t('resumeImport') : t('pauseImport') }}
           </n-button>
         </div>
 
@@ -658,7 +699,10 @@ async function createEntity (entityData) {
             />
           </div>
           <div class="mt-1 text-center text-xs text-gray-500">
-            {{ t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage }) }}
+            {{ paused
+              ? t('importPaused', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
+              : t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
+            }}
           </div>
         </div>
 
@@ -829,8 +873,10 @@ en:
   coordinates: "Coordinates"
   importSelected: "Import | Import {n} Selected Location | Import {n} Selected Locations"
   importingProgress: "Importing... {current}/{total} ({percentage}%)"
+  importPaused: "Paused... {current}/{total} ({percentage}%)"
   importing: "Importing..."
   pauseImport: "Pause"
+  resumeImport: "Resume"
   importResults: "Import Results"
   successfullyImported: "Successfully Imported ({n})"
   importErrors: "Import Errors ({n})"
@@ -856,8 +902,10 @@ et:
   coordinates: "Koordinaadid"
   importSelected: "Impordi | Impordi {n} valitud asukoht | Impordi {n} valitud asukohta"
   importingProgress: "Importimine... {current}/{total} ({percentage}%)"
+  importPaused: "Peatatud... {current}/{total} ({percentage}%)"
   importing: "Importimine..."
   pauseImport: "Peata"
+  resumeImport: "Jätka"
   importResults: "Importimise tulemused"
   successfullyImported: "Edukalt imporditud ({n})"
   importErrors: "Importimise vead ({n})"
