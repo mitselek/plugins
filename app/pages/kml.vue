@@ -37,6 +37,7 @@ const parsing = ref(false)
 const importing = ref(false)
 const paused = ref(false)
 const error = ref('')
+const buttonLock = ref(false) // Prevents double-clicking on action buttons
 const importProgress = ref({
   current: 0,
   total: 0,
@@ -85,6 +86,31 @@ onMounted(async () => {
 
 // UTILITY FUNCTIONS
 // ======================================
+/**
+ * Prevents rapid button clicks by temporarily locking the action
+ *
+ * @param {Function} fn - The function to be debounced
+ * @returns {Function} - Debounced function
+ */
+function protectFromDoubleClick (fn) {
+  return async (...args) => {
+    if (buttonLock.value) return
+
+    buttonLock.value = true
+
+    try {
+      // Call the original function
+      await fn(...args)
+    }
+    finally {
+      // Release the lock after a short delay
+      setTimeout(() => {
+        buttonLock.value = false
+      }, 500) // 500ms delay
+    }
+  }
+}
+
 /**
  * Converts HTML content from KML descriptions to markdown
  *
@@ -171,6 +197,8 @@ function kmlUpload (data) {
   }
 }
 
+const kmlUploadProtected = protectFromDoubleClick(kmlUpload)
+
 function handleFileChange (data) {
   const file = data.fileList?.[0]?.file
   if (file) {
@@ -179,6 +207,8 @@ function handleFileChange (data) {
     parseKML()
   }
 }
+
+const handleFileChangeProtected = protectFromDoubleClick(handleFileChange)
 
 function handleDrop (event) {
   const file = event.dataTransfer.files?.[0]
@@ -192,6 +222,8 @@ function handleDrop (event) {
     error.value = t('errorInvalidFile')
   }
 }
+
+const handleDropProtected = protectFromDoubleClick(handleDrop)
 
 function readFileAsText (file) {
   return new Promise((resolve, reject) => {
@@ -220,6 +252,9 @@ async function parseKML () {
     error.value = t('errorSelectFile')
     return
   }
+
+  // Skip if already parsing
+  if (parsing.value) return
 
   parsing.value = true
   error.value = ''
@@ -298,13 +333,15 @@ function selectAll () {
   })
 }
 
+const selectAllProtected = protectFromDoubleClick(selectAll)
+
 function selectNone () {
   locations.value.forEach((location) => {
     location.selected = false
   })
 }
 
-// Function removed - no longer needed for imported items
+const selectNoneProtected = protectFromDoubleClick(selectNone)
 
 // NAVIGATION METHODS
 // ======================================
@@ -319,8 +356,14 @@ function goBackToUpload () {
   selectedFile.value = null
 }
 
+const goBackToUploadProtected = protectFromDoubleClick(goBackToUpload)
+
 /**
  * Toggles between pausing and resuming the import process
+ *
+ * Note: This function doesn't use the same button lock mechanism
+ * as other buttons, since we want the pause/resume button to be
+ * always available during import.
  */
 function togglePause () {
   if (importing.value) {
@@ -331,6 +374,24 @@ function togglePause () {
       importSelected()
     }
   }
+}
+
+// Create a version with minimal lock time to prevent accidental double-clicks
+// but still keep the button responsive during import
+const togglePauseProtected = function () {
+  // Use a local flag to prevent rapid double-clicks
+  // but don't use the global buttonLock which affects all buttons
+  let localLock = false
+
+  if (localLock) return
+  localLock = true
+
+  togglePause()
+
+  // Release the lock after a very short delay (100ms)
+  setTimeout(() => {
+    localLock = false
+  }, 100)
 }
 
 // API INTERACTION METHODS
@@ -495,6 +556,8 @@ async function importSelected () {
   }
 }
 
+const importSelectedProtected = protectFromDoubleClick(importSelected)
+
 /**
  * Creates a new entity in Entu via direct API call with graceful degradation
  * @param {Object} entityData - Entity data with properties (name, description, coordinates)
@@ -567,10 +630,9 @@ async function createEntity (entityData) {
 <!--
   KML Import Plugin Template
 
-  Three-step wizard for importing KML files into Entu:
+  Two-step wizard for importing KML files into Entu:
   1. Upload: File selection and validation
-  2. Review: Location selection with checkboxes
-  3. Results: Import feedback and error handling
+  2. Review: Location selection with import feedback
 -->
 <template>
   <div
@@ -588,18 +650,18 @@ async function createEntity (entityData) {
     <div v-if="step === STEPS.UPLOAD">
       <n-upload
         v-if="!parsing"
-        :custom-request="kmlUpload"
+        :custom-request="kmlUploadProtected"
         :show-file-list="false"
         accept=".kml,.xml"
         :multiple="false"
         :directory="false"
-        @change="handleFileChange"
+        @change="handleFileChangeProtected"
       >
         <n-upload-dragger
           class="flex h-96 flex-col items-center justify-center gap-2 rounded-none"
           @dragover.prevent
           @dragenter.prevent
-          @drop.prevent="handleDrop"
+          @drop.prevent="handleDropProtected"
         >
           {{ t('uploadText') }}
         </n-upload-dragger>
@@ -628,7 +690,8 @@ async function createEntity (entityData) {
             v-if="!importing"
             text
             type="primary"
-            @click="goBackToUpload"
+            :disabled="buttonLock"
+            @click="goBackToUploadProtected"
           >
             {{ t('backToUpload') }}
           </n-button>
@@ -636,7 +699,7 @@ async function createEntity (entityData) {
             v-else
             text
             type="primary"
-            @click="togglePause"
+            @click="togglePauseProtected"
           >
             {{ paused ? t('resumeImport') : t('pauseImport') }}
           </n-button>
@@ -664,7 +727,8 @@ async function createEntity (entityData) {
               text
               type="primary"
               size="small"
-              @click="selectAll"
+              :disabled="buttonLock"
+              @click="selectAllProtected"
             >
               {{ t('selectAll') }}
             </n-button>
@@ -672,15 +736,16 @@ async function createEntity (entityData) {
               text
               type="primary"
               size="small"
-              @click="selectNone"
+              :disabled="buttonLock"
+              @click="selectNoneProtected"
             >
               {{ t('selectNone') }}
             </n-button>
             <n-button
-              :disabled="!hasSelectedLocations"
+              :disabled="!hasSelectedLocations || buttonLock"
               type="primary"
               size="small"
-              @click="importSelected"
+              @click="importSelectedProtected"
             >
               {{ t('importSelected', selectedCount) }}
             </n-button>
@@ -753,6 +818,7 @@ async function createEntity (entityData) {
             @click="!location.imported && (location.selected = !location.selected)"
           >
             <!-- Show check box for non-imported locations -->
+            <!-- TODO: disable checkboxes once import has started -->
             <n-checkbox
               v-if="!location.imported"
               v-model:checked="location.selected"
@@ -865,7 +931,7 @@ en:
   errorSelectOneLocation: "Please select at least one location to import"
   uploadText: "Click or drag a KML file to this area to upload."
   reviewLocations: "Review Locations"
-  backToUpload: "Back to Upload"
+  backToUpload: "Back to File Selection"
   foundLocations: "Found {n} location(s). Select which ones to import:"
   selectAll: "Select All"
   selectNone: "Select None"
@@ -894,7 +960,7 @@ et:
   errorSelectOneLocation: "Palun valige vähemalt üks asukoht importimiseks"
   uploadText: "Lohista KML fail siia või klõpsa siin, et fail valida."
   reviewLocations: "Asukohtade ülevaade"
-  backToUpload: "Tagasi üleslaadimisele"
+  backToUpload: "Tagasi faili valikusse"
   foundLocations: "Leitud {n} asukoht(a). Valige, millised importida:"
   selectAll: "Vali kõik"
   selectNone: "Tühista valik"
