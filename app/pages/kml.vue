@@ -261,7 +261,9 @@ async function parseKML () {
             name: (feature.properties?.name || '').trim(),
             description: convertToMarkdown(feature.properties?.description),
             coordinates: coordinates, // [longitude, latitude]
-            selected: true // Pre-checked as per requirements
+            selected: true, // Pre-checked as per requirements
+            imported: false, // Initially not imported
+            entityId: null // Will be set when imported
           }
           extractedLocations.push(location)
         }
@@ -300,6 +302,8 @@ function selectNone () {
     location.selected = false
   })
 }
+
+// Function removed - no longer needed for imported items
 
 // NAVIGATION METHODS
 // ======================================
@@ -349,6 +353,7 @@ async function importSelected () {
 
   importing.value = true
   error.value = ''
+
   importResults.value = {
     success: [],
     errors: [],
@@ -391,8 +396,19 @@ async function importSelected () {
 
         const entityId = await createEntity(entityData)
 
+        // Mark the original location as imported and store entityId
+        const originalLocation = locations.value.find((loc) => {
+          return loc.coordinates[0] === location.coordinates[0]
+            && loc.coordinates[1] === location.coordinates[1]
+            && loc.name === location.name
+        })
+        if (originalLocation) {
+          originalLocation.imported = true
+          originalLocation.entityId = entityId
+        }
+
+        // Store just the basic info for success tracking
         importResults.value.success.push({
-          name: location.name,
           entityId: entityId
         })
 
@@ -633,79 +649,95 @@ async function createEntity (entityData) {
           <div
             v-for="(location, index) in locations"
             :key="index"
-            class="flex cursor-pointer items-start border-b border-gray-100 p-3 last:border-b-0 hover:bg-gray-50"
-            @click="location.selected = !location.selected"
+            class="flex items-start border-b border-gray-100 p-3 last:border-b-0"
+            :class="[
+              location.imported ? 'bg-green-50' : '',
+              location.imported ? 'border-green-100' : '',
+              location.imported ? 'cursor-default' : 'cursor-pointer hover:bg-gray-50',
+            ]"
+            @click="!location.imported && (location.selected = !location.selected)"
           >
+            <!-- Show check box for non-imported locations -->
             <n-checkbox
+              v-if="!location.imported"
               v-model:checked="location.selected"
               class="mt-1"
               size="small"
               @click.stop
             />
-            <div class="ml-3 min-w-0 flex-1">
-              <p class="text-sm font-medium text-gray-900">
-                {{ location.name || t('unnamedLocation') }}
-              </p>
-              <p class="text-sm text-gray-500">
-                {{ t('coordinates') }}: {{ location.coordinates[1].toFixed(6) }},
-                {{ location.coordinates[0].toFixed(6) }}
-              </p>
-              <p
-                v-if="location.description"
-                class="mt-1 text-sm text-gray-600"
+
+            <!-- Show marker icon for imported locations -->
+            <div
+              v-else
+              style="display: flex; align-items: center; justify-content: center; margin-top: 0.125rem; width: 1.25rem; height: 1.25rem; color: #059669;"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
               >
-                {{ location.description }}
-              </p>
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+            </div>
+            <div class="ml-3 min-w-0 flex-1">
+              <!-- Imported location - collapsed view -->
+              <div v-if="location.imported">
+                <p class="text-sm font-medium text-gray-900">
+                  <a
+                    :href="`${runtimeConfig.public.entuUrl}/${query.account}/${location.entityId}`"
+                    target="_blank"
+                    class="text-green-600 hover:text-green-800"
+                  >
+                    {{ location.name || t('unnamedLocation') }}
+                  </a>
+                  <span class="ml-1 text-sm text-gray-500">
+                    {{ location.coordinates[1].toFixed(6) }}, {{ location.coordinates[0].toFixed(6) }}
+                  </span>
+                  <span class="ml-1 text-xs text-green-600">({{ t('imported') }})</span>
+                </p>
+              </div>
+
+              <!-- Not imported location - full view -->
+              <div v-else>
+                <p class="text-sm font-medium text-gray-900">
+                  {{ location.name || t('unnamedLocation') }}
+                </p>
+                <p class="text-sm text-gray-500">
+                  {{ t('coordinates') }}: {{ location.coordinates[1].toFixed(6) }},
+                  {{ location.coordinates[0].toFixed(6) }}
+                </p>
+                <p
+                  v-if="location.description"
+                  class="mt-1 text-sm text-gray-600"
+                >
+                  {{ location.description }}
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Step 3: Import Results -->
+    <!-- Step 3: Import Results Summary -->
     <div v-if="step === STEPS.RESULTS">
       <div class="mb-6">
         <h2 class="text-xl font-semibold text-gray-900">
           {{ t('importResults') }}
         </h2>
-      </div>
-
-      <div
-        v-if="importResults.success.length > 0"
-        class="mb-6"
-      >
-        <h3 class="mb-2 text-lg font-medium text-green-800">
+        <div class="mt-2 text-sm text-gray-600">
           {{ t('successfullyImported', importResults.success.length) }}
-        </h3>
-        <div class="rounded-md border border-green-200 bg-green-50 p-4">
-          <ul class="list-inside list-disc space-y-1">
-            <li
-              v-for="result in importResults.success"
-              :key="result.name"
-              class="text-sm text-green-700"
-            >
-              <a
-                v-if="result.entityId"
-                :href="`${runtimeConfig.public.entuUrl}/${query.account}/${result.entityId}`"
-                target="_blank"
-                class="text-green-600 underline hover:text-green-800"
-              >
-                {{ result.name || t('unnamedLocation') }}
-              </a>
-              <span v-else>
-                {{ result.name || t('unnamedLocation') }}
-              </span>
-              <span
-                v-if="result.entityId"
-                class="ml-1 text-green-600"
-              >
-                (ID: {{ result.entityId }})
-              </span>
-            </li>
-          </ul>
         </div>
       </div>
 
+      <!-- Error messages if any -->
       <div
         v-if="importResults.errors.length > 0"
         class="mb-6"
@@ -726,6 +758,7 @@ async function createEntity (entityData) {
         </div>
       </div>
 
+      <!-- Warning if import was stopped -->
       <div
         v-if="importResults.stopped"
         class="mb-6 rounded-md border border-yellow-200 bg-yellow-50 p-4"
@@ -765,6 +798,16 @@ async function createEntity (entityData) {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Return to review screen button -->
+      <div class="mt-4">
+        <n-button
+          type="primary"
+          @click="goBackToUpload"
+        >
+          {{ t('backToUpload') }}
+        </n-button>
       </div>
     </div>
 
@@ -826,6 +869,7 @@ en:
   importStoppedMessage: "Import was stopped after the first error occurred. {skipped} location(s) were not processed."
   retryFailedImport: "Retry Failed Import"
   error: "Error"
+  imported: "Imported"
 et:
   errorNoAccount: "Puudub 'account' parameeter!"
   errorNoType: "Puudub 'type' parameeter!"
@@ -851,4 +895,5 @@ et:
   importStoppedMessage: "Importimine peatati pärast esimest viga. {skipped} asukoht(a) jäi töötlemata."
   retryFailedImport: "Proovi ebaõnnestunud importi uuesti"
   error: "Viga"
+  imported: "Imporditud"
 </i18n>
