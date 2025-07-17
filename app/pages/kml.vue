@@ -553,101 +553,110 @@ async function createEntity (entityData) {
     </div>
 
     <!-- Step 2: Review Locations -->
-    <div v-if="step === STEPS.REVIEW">
-      <div class="mb-6 flex items-center justify-between">
-        <h2 class="text-xl font-semibold text-gray-900">
-          {{ t('reviewLocations') }}
-        </h2>
-        <n-button
-          text
-          type="primary"
-          @click="goBackToUpload"
-        >
-          {{ t('backToUpload') }}
-        </n-button>
-      </div>
-
-      <div class="mb-4 flex items-center justify-between">
-        <p class="text-sm text-gray-600">
-          {{ t('foundLocations', locations.length) }}
-        </p>
-        <div class="flex gap-2">
+    <div
+      v-if="step === STEPS.REVIEW"
+      class="flex h-full flex-col"
+    >
+      <!-- Sticky header with controls -->
+      <div class="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 p-2 shadow-lg">
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="text-xl font-semibold text-gray-900">
+            {{ t('reviewLocations') }}
+          </h2>
           <n-button
             text
             type="primary"
-            size="small"
-            @click="selectAll"
+            @click="goBackToUpload"
           >
-            {{ t('selectAll') }}
-          </n-button>
-          <n-button
-            text
-            type="primary"
-            size="small"
-            @click="selectNone"
-          >
-            {{ t('selectNone') }}
+            {{ t('backToUpload') }}
           </n-button>
         </div>
-      </div>
 
-      <div
-        class="mb-6 max-h-full overflow-y-auto rounded-md border border-gray-200"
-      >
-        <div
-          v-for="(location, index) in locations"
-          :key="index"
-          class="flex cursor-pointer items-start border-b border-gray-100 p-3 last:border-b-0 hover:bg-gray-50"
-          @click="location.selected = !location.selected"
-        >
-          <n-checkbox
-            v-model:checked="location.selected"
-            class="mt-1"
-            size="small"
-            @click.stop
-          />
-          <div class="ml-3 min-w-0 flex-1">
-            <p class="text-sm font-medium text-gray-900">
-              {{ location.name || t('unnamedLocation') }}
-            </p>
-            <p class="text-sm text-gray-500">
-              {{ t('coordinates') }}: {{ location.coordinates[1].toFixed(6) }},
-              {{ location.coordinates[0].toFixed(6) }}
-            </p>
-            <p
-              v-if="location.description"
-              class="mt-1 text-sm text-gray-600"
+        <div class="mb-2 flex items-center justify-between">
+          <p class="text-sm text-gray-600">
+            {{ t('foundLocations', locations.length) }}
+          </p>
+          <div class="flex gap-2">
+            <n-button
+              text
+              type="primary"
+              size="small"
+              @click="selectAll"
             >
-              {{ location.description }}
-            </p>
+              {{ t('selectAll') }}
+            </n-button>
+            <n-button
+              text
+              type="primary"
+              size="small"
+              @click="selectNone"
+            >
+              {{ t('selectNone') }}
+            </n-button>
+            <n-button
+              :disabled="!hasSelectedLocations || importing"
+              type="primary"
+              size="small"
+              @click="importSelected"
+            >
+              {{
+                importing
+                  ? t('importing')
+                  : t('importSelected', selectedCount)
+              }}
+            </n-button>
           </div>
         </div>
-      </div>
-
-      <div class="flex flex-col gap-4">
-        <n-button
-          :disabled="!hasSelectedLocations || importing"
-          type="primary"
-          size="large"
-          @click="importSelected"
-        >
-          {{
-            importing
-              ? t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
-              : t('importSelected', selectedCount)
-          }}
-        </n-button>
 
         <!-- Progress bar (visible only during import) -->
         <div
           v-if="importing"
-          class="w-full"
+          class="mb-2"
         >
           <div class="h-2 w-full rounded-full bg-gray-200">
             <div
               class="h-2 rounded-full bg-green-600 transition-all duration-300 ease-in-out"
               :style="{ width: importProgress.percentage + '%' }"
             />
+          </div>
+          <div class="mt-1 text-center text-xs text-gray-500">
+            {{ t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage }) }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Scrollable locations container -->
+      <div class="flex-1 overflow-y-auto pt-3">
+        <div
+          class="rounded-md border border-gray-200"
+        >
+          <div
+            v-for="(location, index) in locations"
+            :key="index"
+            class="flex cursor-pointer items-start border-b border-gray-100 p-3 last:border-b-0 hover:bg-gray-50"
+            @click="location.selected = !location.selected"
+          >
+            <n-checkbox
+              v-model:checked="location.selected"
+              class="mt-1"
+              size="small"
+              @click.stop
+            />
+            <div class="ml-3 min-w-0 flex-1">
+              <p class="text-sm font-medium text-gray-900">
+                {{ location.name || t('unnamedLocation') }}
+              </p>
+              <p class="text-sm text-gray-500">
+                {{ t('coordinates') }}: {{ location.coordinates[1].toFixed(6) }},
+                {{ location.coordinates[0].toFixed(6) }}
+              </p>
+              <p
+                v-if="location.description"
+                class="mt-1 text-sm text-gray-600"
+              >
+                {{ location.description }}
+              </p>
+            </div>
           </div>
         </div>
       </div>
