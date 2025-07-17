@@ -24,8 +24,7 @@ const { query } = route
 // Step constants for clarity and maintainability
 const STEPS = {
   UPLOAD: 'upload',
-  REVIEW: 'review',
-  RESULTS: 'results'
+  REVIEW: 'review'
 }
 
 // REACTIVE STATE MANAGEMENT
@@ -316,12 +315,6 @@ function goBackToUpload () {
   error.value = ''
 }
 
-async function retryImport () {
-  // Go back to review step and allow user to retry import
-  step.value = STEPS.REVIEW
-  error.value = ''
-}
-
 // API INTERACTION METHODS
 // ======================================
 /**
@@ -337,7 +330,7 @@ async function retryImport () {
  * 3. Creates entity data with name, description, and coordinates
  * 4. Calls createEntity API for each location
  * 5. Stops on first error (fail-fast approach)
- * 6. Tracks success/error results for user feedback
+ * 6. Shows imported locations directly in the review screen
  *
  * @throws {Error} For validation failures or API errors
  */
@@ -353,6 +346,9 @@ async function importSelected () {
 
   importing.value = true
   error.value = ''
+  
+  // Remove unselected locations from view
+  locations.value = locations.value.filter((location) => location.selected || location.imported)
 
   importResults.value = {
     success: [],
@@ -407,7 +403,7 @@ async function importSelected () {
           originalLocation.entityId = entityId
         }
 
-        // Store just the basic info for success tracking
+        // Count successful imports
         importResults.value.success.push({
           entityId: entityId
         })
@@ -431,8 +427,16 @@ async function importSelected () {
         break
       }
     }
-
-    step.value = STEPS.RESULTS
+    
+    // Show success message in the review screen
+    if (importResults.value.errors.length === 0) {
+      // Everything imported successfully
+      error.value = ''
+    }
+    else {
+      // Show error message for failed imports
+      error.value = t('importStopped')
+    }
   }
   catch (err) {
     error.value = `Import failed: ${err.message}`
@@ -577,18 +581,40 @@ async function createEntity (entityData) {
       <div class="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 p-2 shadow-lg">
         <div class="mb-3 flex items-center justify-between">
           <h2 class="text-xl font-semibold text-gray-900">
-            {{ t('reviewLocations') }}
+            {{ importing ? t('importing') : t('reviewLocations') }}
           </h2>
           <n-button
+            v-if="!importing"
             text
             type="primary"
             @click="goBackToUpload"
           >
             {{ t('backToUpload') }}
           </n-button>
+          <n-button
+            v-else
+            text
+            type="primary"
+            disabled
+          >
+            {{ t('pauseImport') }}
+          </n-button>
         </div>
 
-        <div class="mb-2 flex items-center justify-between">
+        <!-- Success message if items were imported -->
+        <div
+          v-if="importResults.success.length > 0"
+          class="mb-3 rounded-md border border-green-200 bg-green-50 px-3 py-2"
+        >
+          <p class="text-sm font-medium text-green-800">
+            {{ t('successfullyImported', importResults.success.length) }}
+          </p>
+        </div>
+
+        <div
+          v-if="!importing"
+          class="mb-2 flex items-center justify-between"
+        >
           <p class="text-sm text-gray-600">
             {{ t('foundLocations', locations.length) }}
           </p>
@@ -610,16 +636,12 @@ async function createEntity (entityData) {
               {{ t('selectNone') }}
             </n-button>
             <n-button
-              :disabled="!hasSelectedLocations || importing"
+              :disabled="!hasSelectedLocations"
               type="primary"
               size="small"
               @click="importSelected"
             >
-              {{
-                importing
-                  ? t('importing')
-                  : t('importSelected', selectedCount)
-              }}
+              {{ t('importSelected', selectedCount) }}
             </n-button>
           </div>
         </div>
@@ -637,6 +659,35 @@ async function createEntity (entityData) {
           </div>
           <div class="mt-1 text-center text-xs text-gray-500">
             {{ t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage }) }}
+          </div>
+        </div>
+
+        <!-- Error messages if any -->
+        <div
+          v-if="importResults.errors.length > 0"
+          class="mb-2 rounded-md border border-red-200 bg-red-50 p-2"
+        >
+          <h3 class="mb-1 text-sm font-medium text-red-800">
+            {{ t('importErrors', importResults.errors.length) }}
+          </h3>
+          <ul class="list-inside list-disc space-y-1">
+            <li
+              v-for="errorItem in importResults.errors"
+              :key="errorItem.name"
+              class="text-sm text-red-700"
+            >
+              {{ errorItem.name || t('unnamedLocation') }}: {{ errorItem.error }}
+            </li>
+          </ul>
+
+          <!-- Warning if import was stopped -->
+          <div
+            v-if="importResults.stopped"
+            class="mt-2"
+          >
+            <p class="text-sm text-yellow-800">
+              {{ t('importStoppedMessage', { skipped: importResults.skipped }) }}
+            </p>
           </div>
         </div>
       </div>
@@ -726,90 +777,7 @@ async function createEntity (entityData) {
       </div>
     </div>
 
-    <!-- Step 3: Import Results Summary -->
-    <div v-if="step === STEPS.RESULTS">
-      <div class="mb-6">
-        <h2 class="text-xl font-semibold text-gray-900">
-          {{ t('importResults') }}
-        </h2>
-        <div class="mt-2 text-sm text-gray-600">
-          {{ t('successfullyImported', importResults.success.length) }}
-        </div>
-      </div>
-
-      <!-- Error messages if any -->
-      <div
-        v-if="importResults.errors.length > 0"
-        class="mb-6"
-      >
-        <h3 class="mb-2 text-lg font-medium text-red-800">
-          {{ t('importErrors', importResults.errors.length) }}
-        </h3>
-        <div class="rounded-md border border-red-200 bg-red-50 p-4">
-          <ul class="list-inside list-disc space-y-1">
-            <li
-              v-for="errorItem in importResults.errors"
-              :key="errorItem.name"
-              class="text-sm text-red-700"
-            >
-              {{ errorItem.name || t('unnamedLocation') }}: {{ errorItem.error }}
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Warning if import was stopped -->
-      <div
-        v-if="importResults.stopped"
-        class="mb-6 rounded-md border border-yellow-200 bg-yellow-50 p-4"
-      >
-        <div class="flex">
-          <div class="shrink-0">
-            <svg
-              class="size-5 text-yellow-400"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                clip-rule="evenodd"
-              />
-            </svg>
-          </div>
-          <div class="ml-3 flex-1">
-            <h3 class="text-sm font-medium text-yellow-800">
-              {{ t('importStopped') }}
-            </h3>
-            <div class="mt-2 text-sm text-yellow-700">
-              <p>
-                {{ t('importStoppedMessage', { skipped: importResults.skipped }) }}
-              </p>
-            </div>
-            <div class="mt-4">
-              <n-button
-                :disabled="importing"
-                type="warning"
-                size="small"
-                @click="retryImport"
-              >
-                {{ importing ? t('importing') : t('retryFailedImport') }}
-              </n-button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Return to review screen button -->
-      <div class="mt-4">
-        <n-button
-          type="primary"
-          @click="goBackToUpload"
-        >
-          {{ t('backToUpload') }}
-        </n-button>
-      </div>
-    </div>
+    <!-- Results are now integrated into the review screen -->
 
     <!-- Error Display -->
     <div
@@ -862,6 +830,7 @@ en:
   importSelected: "Import | Import {n} Selected Location | Import {n} Selected Locations"
   importingProgress: "Importing... {current}/{total} ({percentage}%)"
   importing: "Importing..."
+  pauseImport: "Pause"
   importResults: "Import Results"
   successfullyImported: "Successfully Imported ({n})"
   importErrors: "Import Errors ({n})"
@@ -888,6 +857,7 @@ et:
   importSelected: "Impordi | Impordi {n} valitud asukoht | Impordi {n} valitud asukohta"
   importingProgress: "Importimine... {current}/{total} ({percentage}%)"
   importing: "Importimine..."
+  pauseImport: "Peata"
   importResults: "Importimise tulemused"
   successfullyImported: "Edukalt imporditud ({n})"
   importErrors: "Importimise vead ({n})"
