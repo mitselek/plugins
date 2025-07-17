@@ -813,9 +813,9 @@ en:
   retryFailedImport: "Retry Failed Import"
   error: "Error"
 et:
-  errorNoAccount: "Puudub parameeter \"account\"!"
-  errorNoType: "Puudub parameeter \"type\"!"
-  errorNoToken: "Puudub parameeter \"token\"!"
+  errorNoAccount: "Puudub 'account' parameeter!"
+  errorNoType: "Puudub 'type' parameeter!"
+  errorNoToken: "Puudub 'token' parameeter!"
   errorInvalidFile: "Palun valige KML või XML fail"
   errorSelectFile: "Palun valige fail"
   errorSelectOneLocation: "Palun valige vähemalt üks asukoht importimiseks"
