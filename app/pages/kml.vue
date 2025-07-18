@@ -147,9 +147,6 @@ function convertMarkdownToHtml (markdown) {
       '<a href="$1" target="_blank" rel="noopener noreferrer">'
     )
 
-    // Add empty paragraph at end to enable CSS overflow detection
-    html += '<p class="fade-detector"></p>'
-
     return html
   }
   catch (error) {
@@ -784,9 +781,9 @@ async function sendEntityToEntu (baseProperties) {
                 class="overflow-hidden transition-all duration-500 ease-in-out"
                 :class="getDescriptionClasses(location)"
               >
-                <div class="relative [&::after]:pointer-events-none [&::after]:absolute [&::after]:inset-x-0 [&::after]:bottom-0 [&::after]:h-6 [&::after]:bg-gradient-to-t [&::after]:from-white [&::after]:via-white/80 [&::after]:to-transparent [&::after]:opacity-0 [&::after]:transition-opacity [&::after]:duration-300 [&:has(.fade-detector)::after]:opacity-100">
+                <div>
                   <div
-                    class="prose prose-sm mt-1 max-w-none overflow-y-auto text-gray-600 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>p]:my-2 [&_.fade-detector]:absolute [&_.fade-detector]:bottom-0 [&_.fade-detector]:m-0 [&_.fade-detector]:h-0 [&_.fade-detector]:opacity-0 [&_a]:break-words [&_a]:text-blue-600 [&_a]:underline hover:[&_a]:text-blue-800 [&_img]:h-auto [&_img]:max-w-full"
+                    class="prose prose-sm mt-1 max-w-none overflow-y-auto text-gray-600 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>p]:my-2 [&_a]:break-words [&_a]:text-blue-600 [&_a]:underline hover:[&_a]:text-blue-800 [&_img]:h-auto [&_img]:max-w-full"
                     :style="{ maxHeight: `${CONTENT_LIMITS.MAX_DESCRIPTION_HEIGHT}px` }"
                     @click="handleDescriptionClick"
                     v-html="convertMarkdownToHtml(location.description)"
