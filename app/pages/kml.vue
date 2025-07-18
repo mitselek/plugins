@@ -813,16 +813,16 @@ async function createEntity (entityData) {
             :class="[
               location.imported ? 'bg-green-50' : '',
               location.imported ? 'border-green-100' : '',
-              location.imported ? 'cursor-default' : 'cursor-pointer hover:bg-gray-50',
+              location.imported ? 'cursor-default' : importing ? 'cursor-default' : 'cursor-pointer hover:bg-gray-50',
             ]"
-            @click="!location.imported && (location.selected = !location.selected)"
+            @click="!location.imported && !importing && (location.selected = !location.selected)"
           >
             <!-- Show check box for non-imported locations -->
-            <!-- TODO: disable checkboxes once import has started -->
             <n-checkbox
               v-if="!location.imported"
               v-model:checked="location.selected"
-              class="mt-1"
+              class="mt-1 transition-opacity duration-1000"
+              :class="importing ? 'opacity-0 pointer-events-none' : 'opacity-100'"
               size="small"
               @click.stop
             />
