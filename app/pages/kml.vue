@@ -8,7 +8,7 @@
 
 import { ref, computed, onMounted } from 'vue'
 import TurndownService from 'turndown'
-import { NUpload, NUploadDragger, NSpin, NCheckbox, NButton } from 'naive-ui'
+import { NUpload, NUploadDragger, NSpin, NCheckbox, NButton, NProgress } from 'naive-ui'
 import MyIcon from '../components/my/icon.vue'
 
 const { t } = useI18n()
@@ -74,10 +74,6 @@ const masterCheckboxState = computed(() => {
     return { checked: false, indeterminate: true }
   }
 })
-
-const progressBarStyle = computed(() => ({
-  width: `${importProgress.value.percentage}%`
-}))
 
 function getImportedStatusClasses (location) {
   return location.imported
@@ -626,35 +622,21 @@ async function sendEntityToEntu (baseProperties) {
           >
             {{ t('backToUpload') }}
           </n-button>
-          <n-button
-            v-else
-            text
-            type="primary"
-            @click="togglePauseProtected"
-          >
-            {{ paused ? t('resumeImport') : t('pauseImport') }}
-          </n-button>
         </div>
 
-        <!-- Success message if items were imported -->
-        <div
-          v-if="importResults.success.length > 0"
-          class="mb-3 rounded-md border border-green-200 bg-green-50 px-3 py-2"
-        >
-          <p class="text-sm font-medium text-green-800">
-            {{ t('successfullyImported', importResults.success.length) }}
-          </p>
-        </div>
-
-        <div
-          v-if="!importing"
-          class="mb-2 flex items-center justify-between"
-        >
+        <div class="mb-2 flex items-center justify-between">
           <p class="text-sm text-gray-600">
-            {{ t('foundLocations', locations.length) }}
+            {{ importing
+              ? (paused
+                ? t('importPaused', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
+                : t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
+              )
+              : t('foundLocations', locations.length)
+            }}
           </p>
           <div class="flex items-center gap-2">
             <n-button
+              v-if="!importing"
               :disabled="!hasSelectedLocations || buttonLock"
               type="primary"
               size="small"
@@ -662,23 +644,32 @@ async function sendEntityToEntu (baseProperties) {
             >
               {{ t('importSelected', selectedCount) }}
             </n-button>
+            <n-button
+              v-else
+              type="primary"
+              size="small"
+              @click="togglePauseProtected"
+            >
+              {{ paused ? t('resumeImport') : t('pauseImport') }}
+            </n-button>
           </div>
         </div>
 
         <!-- Master checkbox for select all/none -->
         <div
           v-if="!importing && locations.length > 0"
-          class="mb-2 flex cursor-pointer items-center gap-2 pl-3"
+          class="mb-2 ml-1 inline-flex cursor-pointer items-start"
           @click="handleMasterCheckboxChange(!masterCheckboxState.checked)"
         >
           <n-checkbox
             :checked="masterCheckboxState.checked"
             :indeterminate="masterCheckboxState.indeterminate"
+            class="mt-1"
             size="small"
             @update:checked="handleMasterCheckboxChange"
             @click.stop
           />
-          <span class="text-sm text-gray-600">
+          <span class="ml-3 text-sm text-gray-600">
             {{ t('selectAll') }}
           </span>
         </div>
@@ -686,19 +677,17 @@ async function sendEntityToEntu (baseProperties) {
         <!-- Progress bar (visible only during import) -->
         <div
           v-if="importing"
-          class="mb-2"
+          class="mb-2 ml-1 inline-flex items-start"
         >
-          <div class="h-2 w-full rounded-full bg-gray-200">
-            <div
-              class="h-2 rounded-full bg-green-600 transition-all duration-300 ease-in-out"
-              :style="progressBarStyle"
+          <div class="mt-1 w-80">
+            <n-progress
+              type="line"
+              :percentage="importProgress.percentage"
+              :height="16"
+              :border-radius="8"
+              :show-indicator="false"
+              status="success"
             />
-          </div>
-          <div class="mt-1 text-center text-xs text-gray-500">
-            {{ paused
-              ? t('importPaused', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
-              : t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
-            }}
           </div>
         </div>
 
