@@ -6,29 +6,36 @@
   Architecture: Client-side processing with direct API calls to Entu.
 */
 
-// IMPORTS AND DEPENDENCIES
-// ======================================
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import * as toGeoJSON from '@tmcw/togeojson'
 import TurndownService from 'turndown'
 import { NUpload, NUploadDragger, NSpin, NCheckbox, NButton } from 'naive-ui'
+import MyIcon from '../components/my/icon.vue'
 
-// CONFIGURATION AND CONSTANTS
-// ======================================
 const { t } = useI18n()
 const runtimeConfig = useRuntimeConfig()
 const route = useRoute()
 const { query } = route
 
-// Step constants for clarity and maintainability
 const STEPS = {
   UPLOAD: 'upload',
   REVIEW: 'review'
 }
 
-// REACTIVE STATE MANAGEMENT
-// ======================================
+const ANIMATION_DURATIONS = {
+  BUTTON_LOCK: 500, // ms - prevents double-clicking
+  TOGGLE_PAUSE_LOCK: 100, // ms - minimal lock for pause/resume
+  SCROLL_BASE: 300, // ms - base scroll animation duration
+  SCROLL_MAX: 1000, // ms - maximum scroll animation duration
+  USER_SCROLL_RESUME: 5000, // ms - time before auto-scroll resumes after user interaction
+  SCROLL_DEBOUNCE: 100 // ms - debounce threshold for user scroll detection
+}
+
+const CONTENT_LIMITS = {
+  MAX_DESCRIPTION_LENGTH: 20000 // characters - prevent extremely long descriptions
+}
+
 // UI state
 const step = ref(STEPS.UPLOAD)
 const selectedFile = ref(null)
@@ -49,7 +56,6 @@ const importProgress = ref({
   pendingLocations: null
 })
 
-// Import results tracking
 const importResults = ref({
   success: [],
   errors: [],
@@ -57,8 +63,6 @@ const importResults = ref({
   skipped: 0
 })
 
-// COMPUTED PROPERTIES
-// ======================================
 const hasSelectedLocations = computed(() =>
   locations.value.some((location) => location.selected)
 )
@@ -67,11 +71,7 @@ const selectedCount = computed(
   () => locations.value.filter((location) => location.selected).length
 )
 
-// LIFECYCLE HOOKS
-// ======================================
-// Initialize from URL parameters
 onMounted(async () => {
-  // Validate required parameters
   if (!query.account) {
     error.value = t('errorNoAccount')
     return
@@ -88,7 +88,6 @@ onMounted(async () => {
   }
 })
 
-// Cleanup scroll listener when component is unmounted
 onUnmounted(() => {
   if (userScrollTimer.value) {
     clearTimeout(userScrollTimer.value)
@@ -99,9 +98,6 @@ onUnmounted(() => {
 // ======================================
 /**
  * Prevents rapid button clicks by temporarily locking the action
- *
- * @param {Function} fn - The function to be debounced
- * @returns {Function} - Debounced function
  */
 function protectFromDoubleClick (fn) {
   return async (...args) => {
@@ -110,47 +106,39 @@ function protectFromDoubleClick (fn) {
     buttonLock.value = true
 
     try {
-      // Call the original function
       await fn(...args)
     }
     finally {
-      // Release the lock after a short delay
       setTimeout(() => {
         buttonLock.value = false
-      }, 500) // 500ms delay
+      }, ANIMATION_DURATIONS.BUTTON_LOCK)
     }
   }
 }
 
 /**
- * Scrolls to keep the currently importing location visible in the viewport with enhanced easing
- * @param {number} index - Index of the location being imported
+ * Scrolls to keep the currently importing location visible with enhanced easing
  */
 function scrollToLocation (index) {
   const element = locationRefs.value[index]
   if (!element) return
 
-  // Get current scroll position and element position
   const container = element.closest('.overflow-y-auto')
   if (!container) return
 
-  // Store container reference for user scroll detection
   if (!scrollContainer.value) {
     scrollContainer.value = container
     setupScrollListener()
   }
 
-  // Don't auto-scroll if user recently scrolled manually
   if (userScrollPaused.value) {
     return
   }
 
-  // Calculate the current scroll position and target position
   const currentScrollTop = container.scrollTop
   const elementOffsetTop = element.offsetTop
   const containerHeight = container.clientHeight
 
-  // Calculate target scroll position (center the element)
   const targetScrollTop = elementOffsetTop - (containerHeight / 2) + (element.offsetHeight / 2)
 
   // Never scroll backwards - only scroll forward or stay in place
@@ -158,20 +146,16 @@ function scrollToLocation (index) {
     return
   }
 
-  // Calculate distance for dynamic speed adjustment
   const distance = Math.abs(targetScrollTop - currentScrollTop)
 
-  // Adjust duration based on distance (300ms to 1000ms range)
-  const baseDuration = 300
-  const maxDuration = 1000
+  const baseDuration = ANIMATION_DURATIONS.SCROLL_BASE
+  const maxDuration = ANIMATION_DURATIONS.SCROLL_MAX
   const duration = Math.min(baseDuration + (distance / 2), maxDuration)
 
-  // Enhanced easing function with smooth acceleration and deceleration
   const easeInOutCubic = (t) => {
     return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1
   }
 
-  // Smooth scroll animation
   const startTime = performance.now()
   const startScrollTop = currentScrollTop
 
@@ -179,7 +163,6 @@ function scrollToLocation (index) {
     const elapsed = currentTime - startTime
     const progress = Math.min(elapsed / duration, 1)
 
-    // Apply easing
     const easedProgress = easeInOutCubic(progress)
     const newScrollTop = startScrollTop + (targetScrollTop - startScrollTop) * easedProgress
 
@@ -205,24 +188,20 @@ function setupScrollListener () {
   const handleScroll = () => {
     const currentTime = Date.now()
 
-    // Clear existing timeout
     if (scrollTimeout) {
       clearTimeout(scrollTimeout)
     }
 
-    // Only consider it user scroll if enough time has passed since last auto-scroll
-    if (currentTime - lastScrollTime > 100) {
+    if (currentTime - lastScrollTime > ANIMATION_DURATIONS.SCROLL_DEBOUNCE) {
       userScrollPaused.value = true
 
-      // Clear existing timer
       if (userScrollTimer.value) {
         clearTimeout(userScrollTimer.value)
       }
 
-      // Resume auto-scroll after 5 seconds of no user interaction
       userScrollTimer.value = setTimeout(() => {
         userScrollPaused.value = false
-      }, 5000)
+      }, ANIMATION_DURATIONS.USER_SCROLL_RESUME)
     }
 
     lastScrollTime = currentTime
@@ -233,43 +212,44 @@ function setupScrollListener () {
 
 /**
  * Converts HTML content from KML descriptions to markdown
- *
- * Uses Turndown library to handle conversion of HTML to markdown:
- * - Converts HTML tags to appropriate markdown syntax
- * - Properly handles links, lists, formatting
- * - Maintains structure while removing HTML complexity
- *
- * @param {string|Object} description - Raw description from KML
- * @returns {string} Description converted to markdown format
  */
 function convertToMarkdown (description) {
   if (!description) return ''
 
-  // Extract HTML content from description
-  const htmlContent = typeof description === 'string'
-    ? description
-    : description?.value || description?.toString() || ''
-
+  const htmlContent = extractHtmlContent(description)
   if (!htmlContent) return ''
 
-  // Convert HTML to Markdown using Turndown with custom configuration
+  const turndownService = createTurndownService()
+  let markdown = turndownService.turndown(htmlContent)
+
+  markdown = cleanupMarkdown(markdown)
+  markdown = convertUrlsToMarkdownLinks(markdown)
+
+  return markdown
+}
+
+function extractHtmlContent (description) {
+  return typeof description === 'string'
+    ? description
+    : description?.value || description?.toString() || ''
+}
+
+function createTurndownService () {
   const turndownService = new TurndownService({
-    headingStyle: 'atx', // Use # style headings
-    codeBlockStyle: 'fenced', // Use ``` style code blocks
-    hr: '---', // Use --- for horizontal rules
-    bulletListMarker: '-', // Use - for bullet lists
-    emDelimiter: '_' // Use _underscore_ for emphasis
+    headingStyle: 'atx',
+    codeBlockStyle: 'fenced',
+    hr: '---',
+    bulletListMarker: '-',
+    emDelimiter: '_'
   })
 
-  // Add custom rule for line breaks to preserve paragraph structure better
   turndownService.addRule('lineBreaks', {
     filter: ['br'],
     replacement: function () {
-      return '\n\n' // Simple newline instead of hardcoded line breaks
+      return '\n\n'
     }
   })
 
-  // Improve image handling - place images on their own line
   turndownService.addRule('images', {
     filter: 'img',
     replacement: function (content, node) {
@@ -279,34 +259,27 @@ function convertToMarkdown (description) {
     }
   })
 
-  // Convert and clean up the result
-  let markdown = turndownService.turndown(htmlContent)
+  return turndownService
+}
 
-  // Clean up: convert consecutive line breaks to proper paragraph breaks
-  markdown = markdown.replace(/\n{3,}/g, '\n\n') // No more than 2 consecutive line breaks
+function cleanupMarkdown (markdown) {
+  return markdown.replace(/\n{3,}/g, '\n\n')
+}
 
-  // Second pass to ensure all URLs are converted to markdown links
-  // This catches any URLs that weren't handled by the Turndown rule
-  markdown = markdown.replace(
+function convertUrlsToMarkdownLinks (markdown) {
+  return markdown.replace(
     /(^|\s)(https?:\/\/[^\s\n]+)(?=\s|$|\n|\.)/g,
     function (match, p1, p2) {
-      // Don't convert URLs that are already in markdown link format
       if (match.indexOf('[') !== -1 && match.indexOf('](') !== -1) {
         return match
       }
       return p1 + '[' + p2 + '](' + p2 + ')'
     }
   )
-
-  return markdown
 }
 
 // FILE HANDLING METHODS
 // ======================================
-/**
- * File selection and parsing methods for KML import workflow
- */
-
 function kmlUpload (data) {
   const file = data.file?.file || data.file
 
@@ -356,16 +329,6 @@ function readFileAsText (file) {
 
 /**
  * Parses uploaded KML file and extracts point locations
- *
- * Workflow:
- * 1. Read file content as text using FileReader
- * 2. Parse XML using DOMParser with application/xml MIME type
- * 3. Convert KML to GeoJSON using @tmcw/togeojson library
- * 4. Extract Point geometries with valid coordinates
- * 5. Convert descriptions to markdown format
- * 6. Transition to review step with pre-selected locations
- *
- * @throws {Error} For invalid files, XML parsing errors, or no locations found
  */
 async function parseKML () {
   if (!selectedFile.value) {
@@ -373,7 +336,6 @@ async function parseKML () {
     return
   }
 
-  // Skip if already parsing
   if (parsing.value) return
 
   parsing.value = true
@@ -384,16 +346,12 @@ async function parseKML () {
     const parser = new DOMParser()
     const kmlDoc = parser.parseFromString(text, 'application/xml')
 
-    // Check for XML parsing errors
     const parserError = kmlDoc.querySelector('parsererror')
     if (parserError) {
       throw new Error('Invalid KML file: XML parsing failed')
     }
 
-    // Convert KML to GeoJSON
     const geoJson = toGeoJSON.kml(kmlDoc)
-
-    // Extract locations from GeoJSON
     const extractedLocations = []
 
     if (geoJson.features) {
@@ -401,7 +359,6 @@ async function parseKML () {
         if (feature.geometry && feature.geometry.type === 'Point') {
           const coordinates = feature.geometry.coordinates
 
-          // Validate coordinates
           if (
             !Array.isArray(coordinates)
             || coordinates.length < 2
@@ -410,16 +367,16 @@ async function parseKML () {
             || isNaN(coordinates[0])
             || isNaN(coordinates[1])
           ) {
-            continue // Skip invalid coordinates
+            continue
           }
 
           const location = {
             name: (feature.properties?.name || '').trim(),
             description: convertToMarkdown(feature.properties?.description),
-            coordinates: coordinates, // [longitude, latitude]
-            selected: true, // Pre-checked as per requirements
-            imported: false, // Initially not imported
-            entityId: null // Will be set when imported
+            coordinates: coordinates,
+            selected: true,
+            imported: false,
+            entityId: null
           }
           extractedLocations.push(location)
         }
@@ -441,12 +398,6 @@ async function parseKML () {
   }
 }
 
-// LOCATION SELECTION METHODS
-// ======================================
-/**
- * Methods for managing location selection in the review step
- */
-
 function selectAll () {
   locations.value.forEach((location) => {
     location.selected = true
@@ -463,44 +414,25 @@ function selectNone () {
 
 const selectNoneProtected = protectFromDoubleClick(selectNone)
 
-// NAVIGATION METHODS
-// ======================================
-/**
- * Methods for navigating between workflow steps
- */
-
 function goBackToUpload () {
   step.value = STEPS.UPLOAD
   error.value = ''
-  // Reset the selected file to clear the UI
   selectedFile.value = null
 }
 
 const goBackToUploadProtected = protectFromDoubleClick(goBackToUpload)
 
-/**
- * Toggles between pausing and resuming the import process
- *
- * Note: This function doesn't use the same button lock mechanism
- * as other buttons, since we want the pause/resume button to be
- * always available during import.
- */
 function togglePause () {
   if (importing.value) {
     paused.value = !paused.value
 
     if (!paused.value) {
-      // Resume import if unpaused
       importSelected()
     }
   }
 }
 
-// Create a version with minimal lock time to prevent accidental double-clicks
-// but still keep the button responsive during import
 const togglePauseProtected = function () {
-  // Use a local flag to prevent rapid double-clicks
-  // but don't use the global buttonLock which affects all buttons
   let localLock = false
 
   if (localLock) return
@@ -508,36 +440,16 @@ const togglePauseProtected = function () {
 
   togglePause()
 
-  // Release the lock after a very short delay (100ms)
   setTimeout(() => {
     localLock = false
-  }, 100)
+  }, ANIMATION_DURATIONS.TOGGLE_PAUSE_LOCK)
 }
-
-// API INTERACTION METHODS
-// ======================================
-/**
- * Methods for importing locations and creating entities in Entu
- */
 
 /**
  * Imports selected locations to Entu as new entities
- *
- * Process:
- * 1. Validates that locations are selected
- * 2. Iterates through selected locations sequentially
- * 3. Creates entity data with name, description, and coordinates
- * 4. Calls createEntity API for each location
- * 5. Supports pause/resume functionality
- * 6. Stops on first error (fail-fast approach)
- * 7. Shows imported locations directly in the review screen
- *
- * @throws {Error} For validation failures or API errors
+ * Supports pause/resume functionality and stops on first error
  */
 async function importSelected () {
-  // No action needed here for pause/resume - we'll handle it in togglePause
-
-  // First time starting the import
   if (!importing.value) {
     const selectedLocations = locations.value.filter(
       (location) => location.selected
@@ -552,7 +464,6 @@ async function importSelected () {
     error.value = ''
     paused.value = false
 
-    // Remove unselected locations from view
     locations.value = locations.value.filter((location) => location.selected || location.imported)
 
     importResults.value = {
@@ -562,38 +473,31 @@ async function importSelected () {
       skipped: 0
     }
 
-    // Reset and initialize progress tracking
     importProgress.value = {
       current: 0,
       total: selectedLocations.length,
       percentage: 0,
-      pendingLocations: null // Will be initialized during the import process
+      pendingLocations: null
     }
   }
 
   try {
-    // Store all pending locations to import in a stable array
-    // We'll only do this once when the import starts initially
     if (!importProgress.value.pendingLocations) {
       importProgress.value.pendingLocations = locations.value
         .filter((location) => location.selected && !location.imported)
         .map((location, index) => ({ location, index }))
     }
 
-    // If we're resuming, we'll continue where we left off using our stable array
     for (let i = importProgress.value.current; i < importProgress.value.pendingLocations.length; i++) {
-      // Check if paused
       if (paused.value) {
-        return // Exit the function but maintain state for resume
+        return
       }
 
       const { location } = importProgress.value.pendingLocations[i]
 
-      // Auto-scroll to keep the current location visible
       scrollToLocation(i)
 
       try {
-        // Validate location data
         if (!location.coordinates || location.coordinates.length < 2) {
           throw new Error('Invalid coordinates')
         }
@@ -609,18 +513,15 @@ async function importSelected () {
           }
         }
 
-        // Add description if present
         if (location.description) {
           entityData.properties.description = location.description
         }
 
         const entityId = await createEntity(entityData)
 
-        // Mark the original location as imported and store entityId
         location.imported = true
         location.entityId = entityId
 
-        // Also update the location in the main locations array
         const originalLocation = locations.value.find((loc) => {
           return loc.coordinates[0] === location.coordinates[0]
             && loc.coordinates[1] === location.coordinates[1]
@@ -631,12 +532,10 @@ async function importSelected () {
           originalLocation.entityId = entityId
         }
 
-        // Count successful imports
         importResults.value.success.push({
           entityId: entityId
         })
 
-        // Update progress
         importProgress.value.current++
         importProgress.value.percentage = Math.round(
           (importProgress.value.current / importProgress.value.total) * 100
@@ -649,20 +548,16 @@ async function importSelected () {
           error: errorMessage
         })
 
-        // Stop on first error as per requirements
         importResults.value.stopped = true
         importResults.value.skipped = importProgress.value.pendingLocations.length - i - 1
         break
       }
     }
 
-    // Show success message in the review screen
     if (importResults.value.errors.length === 0) {
-      // Everything imported successfully
       error.value = ''
     }
     else {
-      // Show error message for failed imports
       error.value = t('importStopped')
     }
   }
@@ -670,10 +565,8 @@ async function importSelected () {
     error.value = `Import failed: ${err.message}`
   }
   finally {
-    // Only set importing to false if we're not paused
     if (!paused.value) {
       importing.value = false
-      // Clean up the pendingLocations when import completes
       importProgress.value.pendingLocations = null
     }
   }
@@ -681,21 +574,24 @@ async function importSelected () {
 
 const importSelectedProtected = protectFromDoubleClick(importSelected)
 
-/**
- * Creates a new entity in Entu via direct API call with graceful degradation
- * @param {Object} entityData - Entity data with properties (name, description, coordinates)
- * @returns {string} - Created entity ID
- */
 async function createEntity (entityData) {
-  // Prepare base properties for Entu API
+  const baseProperties = buildEntityProperties(entityData)
+  const response = await sendEntityToEntu(baseProperties)
+
+  if (response && response._id) {
+    return response._id
+  }
+
+  throw new Error('Missing entity ID in response')
+}
+
+function buildEntityProperties (entityData) {
   const baseProperties = [{ type: '_type', reference: query.type }]
 
-  // Add parent if specified in URL
   if (query.parent) {
     baseProperties.push({ type: '_parent', reference: query.parent })
   }
 
-  // Add entity-specific properties
   if (entityData.properties.name) {
     baseProperties.push({
       type: 'name',
@@ -703,7 +599,6 @@ async function createEntity (entityData) {
     })
   }
 
-  // Add coordinates as separate latitude and longitude properties
   if (entityData.properties.coordinates) {
     baseProperties.push({
       type: 'lat',
@@ -715,23 +610,26 @@ async function createEntity (entityData) {
     })
   }
 
-  // Add description if present
   if (entityData.properties.description) {
-    // Basic safety checks
-    let processedDescription = entityData.properties.description
-    const MAX_DESCRIPTION_LENGTH = 20000
-    if (processedDescription.length > MAX_DESCRIPTION_LENGTH) {
-      processedDescription = processedDescription.substring(0, MAX_DESCRIPTION_LENGTH) + '...'
-    }
-
+    const processedDescription = processDescription(entityData.properties.description)
     baseProperties.push({
       type: 'kirjeldus',
       text: processedDescription
     })
   }
 
-  // Create entity with properties
-  const response = await $fetch(
+  return baseProperties
+}
+
+function processDescription (description) {
+  if (description.length > CONTENT_LIMITS.MAX_DESCRIPTION_LENGTH) {
+    return description.substring(0, CONTENT_LIMITS.MAX_DESCRIPTION_LENGTH) + '...'
+  }
+  return description
+}
+
+async function sendEntityToEntu (baseProperties) {
+  return await $fetch(
     `${runtimeConfig.public.entuUrl}/api/${query.account}/entity`,
     {
       method: 'POST',
@@ -741,21 +639,11 @@ async function createEntity (entityData) {
       body: baseProperties
     }
   )
-
-  if (response && response._id) {
-    return response._id
-  }
-
-  throw new Error('Missing entity ID in response')
 }
 </script>
 
 <!--
-  KML Import Plugin Template
-
-  Two-step wizard for importing KML files into Entu:
-  1. Upload: File selection and validation
-  2. Review: Location selection with import feedback
+  KML Import Plugin - Two-step wizard for importing KML files into Entu
 -->
 <template>
   <div
@@ -954,22 +842,12 @@ async function createEntity (entityData) {
             <!-- Show marker icon for imported locations -->
             <div
               v-else
-              style="display: flex; align-items: center; justify-content: center; margin-top: 0.125rem; width: 1.25rem; height: 1.25rem; color: #059669;"
+              class="mt-0.5 flex size-5 items-center justify-center text-green-600"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
+              <my-icon
+                icon="check-circle"
+                class="size-5"
+              />
             </div>
             <div class="ml-3 min-w-0 flex-1 transition-all duration-500 ease-in-out">
               <!-- Location name - always shown but changes link/color when imported -->
@@ -1030,17 +908,10 @@ async function createEntity (entityData) {
     >
       <div class="flex">
         <div class="shrink-0">
-          <svg
+          <my-icon
+            icon="error-circle"
             class="size-5 text-red-400"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-              clip-rule="evenodd"
-            />
-          </svg>
+          />
         </div>
         <div class="ml-3">
           <h3 class="text-sm font-medium text-red-800">
