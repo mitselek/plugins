@@ -22,15 +22,19 @@ const STEPS = {
 }
 
 const ANIMATION_DURATIONS = {
-  BUTTON_LOCK: 500, // ms - prevents double-clicking
-  TOGGLE_PAUSE_LOCK: 100 // ms - minimal lock for pause/resume
+  BUTTON_LOCK: 500,
+  TOGGLE_PAUSE_LOCK: 100
 }
 
 const CONTENT_LIMITS = {
-  MAX_DESCRIPTION_LENGTH: 20000 // characters - prevent extremely long descriptions
+  MAX_DESCRIPTION_LENGTH: 20000,
+  MAX_DESCRIPTION_HEIGHT: 384
 }
 
-// UI state
+const COORDINATE_VALIDATION = {
+  COORDINATE_PRECISION: 6
+}
+
 const step = ref(STEPS.UPLOAD)
 const selectedFile = ref(null)
 const locations = ref([])
@@ -38,7 +42,7 @@ const parsing = ref(false)
 const importing = ref(false)
 const paused = ref(false)
 const error = ref('')
-const buttonLock = ref(false) // Prevents double-clicking on action buttons
+const buttonLock = ref(false)
 const importProgress = ref({
   current: 0,
   total: 0,
@@ -79,7 +83,19 @@ const masterCheckboxState = computed(() => {
 function getDescriptionClasses (location) {
   return location.imported
     ? 'max-h-0 opacity-0'
-    : 'max-h-48 opacity-100'
+    : 'max-h-96 opacity-100'
+}
+
+function isDescriptionLong (description) {
+  return Boolean(description && description.trim().length > 0)
+}
+
+function handleDescriptionClick (event) {
+  if (event.target.tagName === 'A' && event.target.href) {
+    event.stopPropagation()
+    window.open(event.target.href, '_blank', 'noopener,noreferrer')
+    event.preventDefault()
+  }
 }
 
 onMounted(async () => {
@@ -99,31 +115,6 @@ onMounted(async () => {
   }
 })
 
-// UTILITY FUNCTIONS
-// ======================================
-/**
- * Prevents rapid button clicks by temporarily locking the action
- */
-function protectFromDoubleClick (fn) {
-  return async (...args) => {
-    if (buttonLock.value) return
-
-    buttonLock.value = true
-
-    try {
-      await fn(...args)
-    }
-    finally {
-      setTimeout(() => {
-        buttonLock.value = false
-      }, ANIMATION_DURATIONS.BUTTON_LOCK)
-    }
-  }
-}
-
-/**
- * Converts HTML content from KML descriptions to markdown
- */
 function convertToMarkdown (description) {
   if (!description) return ''
 
@@ -144,21 +135,27 @@ function convertToMarkdown (description) {
  */
 function convertMarkdownToHtml (markdown) {
   if (!markdown) return ''
-  
+
   try {
-    // Configure marked with safe options
     marked.setOptions({
-      breaks: true, // Convert \n to <br>
-      gfm: true, // GitHub Flavored Markdown
-      sanitize: false, // We'll handle sanitization manually if needed
-      smartypants: false // Don't convert quotes/dashes
+      breaks: true,
+      gfm: true,
+      sanitize: false,
+      smartypants: false
     })
-    
-    return marked(markdown)
+
+    let html = marked(markdown)
+
+    html = html.replace(
+      /<a\s+href="([^"]+)"[^>]*>/g,
+      '<a href="$1" target="_blank" rel="noopener noreferrer">'
+    )
+
+    return html
   }
   catch (error) {
     console.warn('Failed to convert markdown to HTML:', error)
-    return markdown // Fallback to plain text
+    return markdown
   }
 }
 
@@ -212,8 +209,6 @@ function convertUrlsToMarkdownLinks (markdown) {
   )
 }
 
-// FILE HANDLING METHODS
-// ======================================
 function kmlUpload (data) {
   const file = data.file?.file || data.file
 
@@ -224,10 +219,6 @@ function kmlUpload (data) {
   }
 }
 
-function kmlUploadProtected (data) {
-  return protectFromDoubleClick(kmlUpload)(data)
-}
-
 function handleFileChange (data) {
   const file = data.fileList?.[0]?.file
   if (file) {
@@ -235,10 +226,6 @@ function handleFileChange (data) {
     error.value = ''
     parseKML()
   }
-}
-
-function handleFileChangeProtected (data) {
-  return protectFromDoubleClick(handleFileChange)(data)
 }
 
 function handleDrop (event) {
@@ -252,10 +239,6 @@ function handleDrop (event) {
   else {
     error.value = t('errorInvalidFile')
   }
-}
-
-function handleDropProtected (event) {
-  return protectFromDoubleClick(handleDrop)(event)
 }
 
 function readFileAsText (file) {
@@ -347,13 +330,16 @@ function handleMasterCheckboxChange (checked) {
 }
 
 function goBackToUpload () {
+  if (buttonLock.value) return
+
+  buttonLock.value = true
   step.value = STEPS.UPLOAD
   error.value = ''
   selectedFile.value = null
-}
 
-function goBackToUploadProtected () {
-  return protectFromDoubleClick(goBackToUpload)()
+  setTimeout(() => {
+    buttonLock.value = false
+  }, ANIMATION_DURATIONS.BUTTON_LOCK)
 }
 
 function togglePause () {
@@ -384,6 +370,8 @@ function togglePauseProtected () {
  * Supports pause/resume functionality and stops on first error
  */
 async function importSelected () {
+  if (buttonLock.value) return
+
   if (!importing.value) {
     const selectedLocations = locations.value.filter(
       (location) => location.selected
@@ -394,6 +382,7 @@ async function importSelected () {
       return
     }
 
+    buttonLock.value = true
     importing.value = true
     error.value = ''
     paused.value = false
@@ -500,12 +489,9 @@ async function importSelected () {
     if (!paused.value) {
       importing.value = false
       importProgress.value.pendingLocations = null
+      buttonLock.value = false
     }
   }
-}
-
-function importSelectedProtected () {
-  return protectFromDoubleClick(importSelected)()
 }
 
 async function createEntity (entityData) {
@@ -595,18 +581,18 @@ async function sendEntityToEntu (baseProperties) {
     <div v-if="step === STEPS.UPLOAD">
       <n-upload
         v-if="!parsing"
-        :custom-request="kmlUploadProtected"
+        :custom-request="kmlUpload"
         :show-file-list="false"
         accept=".kml,.xml"
         :multiple="false"
         :directory="false"
-        @change="handleFileChangeProtected"
+        @change="handleFileChange"
       >
         <n-upload-dragger
           class="flex h-96 flex-col items-center justify-center gap-2 rounded-none"
           @dragover.prevent
           @dragenter.prevent
-          @drop.prevent="handleDropProtected"
+          @drop.prevent="handleDrop"
         >
           {{ t('uploadText') }}
         </n-upload-dragger>
@@ -636,7 +622,7 @@ async function sendEntityToEntu (baseProperties) {
             text
             type="primary"
             :disabled="buttonLock"
-            @click="goBackToUploadProtected"
+            @click="goBackToUpload"
           >
             {{ t('backToUpload') }}
           </n-button>
@@ -658,7 +644,7 @@ async function sendEntityToEntu (baseProperties) {
               :disabled="!hasSelectedLocations || buttonLock"
               type="primary"
               size="small"
-              @click="importSelectedProtected"
+              @click="importSelected"
             >
               {{ t('importSelected', selectedCount) }}
             </n-button>
@@ -789,7 +775,7 @@ async function sendEntityToEntu (baseProperties) {
                   {{ location.name || t('unnamedLocation') }}
                 </span>
                 <span class="ml-1 text-sm text-gray-500">
-                  {{ location.coordinates[1].toFixed(6) }}, {{ location.coordinates[0].toFixed(6) }}
+                  {{ location.coordinates[1].toFixed(COORDINATE_VALIDATION.COORDINATE_PRECISION) }}, {{ location.coordinates[0].toFixed(COORDINATE_VALIDATION.COORDINATE_PRECISION) }}
                 </span>
               </p>
 
@@ -799,10 +785,19 @@ async function sendEntityToEntu (baseProperties) {
                 class="overflow-hidden transition-all duration-500 ease-in-out"
                 :class="getDescriptionClasses(location)"
               >
-                <div
-                  class="prose prose-sm mt-1 max-w-none text-gray-600"
-                  v-html="convertMarkdownToHtml(location.description)"
-                />
+                <div class="relative">
+                  <div
+                    class="prose prose-sm mt-1 max-w-none overflow-y-auto text-gray-600 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>p]:my-2 [&_a]:break-words [&_a]:text-blue-600 [&_a]:underline hover:[&_a]:text-blue-800 [&_img]:h-auto [&_img]:max-w-full"
+                    :style="{ maxHeight: `${CONTENT_LIMITS.MAX_DESCRIPTION_HEIGHT}px` }"
+                    @click="handleDescriptionClick"
+                    v-html="convertMarkdownToHtml(location.description)"
+                  />
+                  <!-- Fade indicator for overflow content -->
+                  <div
+                    class="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white via-white/80 to-transparent opacity-0 transition-opacity duration-300"
+                    :class="{ 'opacity-100': isDescriptionLong(location.description) }"
+                  />
+                </div>
               </div>
             </div>
           </div>
