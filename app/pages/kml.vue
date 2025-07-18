@@ -60,6 +60,37 @@ const selectedCount = computed(
   () => locations.value.filter((location) => location.selected).length
 )
 
+const masterCheckboxState = computed(() => {
+  const selectableLocations = locations.value.filter((location) => !location.imported)
+  const selectedSelectableCount = selectableLocations.filter((location) => location.selected).length
+
+  if (selectedSelectableCount === 0) {
+    return { checked: false, indeterminate: false }
+  }
+  else if (selectedSelectableCount === selectableLocations.length) {
+    return { checked: true, indeterminate: false }
+  }
+  else {
+    return { checked: false, indeterminate: true }
+  }
+})
+
+const progressBarStyle = computed(() => ({
+  width: `${importProgress.value.percentage}%`
+}))
+
+function getImportedStatusClasses (location) {
+  return location.imported
+    ? 'opacity-100 max-h-5'
+    : 'opacity-0 max-h-0'
+}
+
+function getDescriptionClasses (location) {
+  return location.imported
+    ? 'max-h-0 opacity-0'
+    : 'max-h-48 opacity-100'
+}
+
 onMounted(async () => {
   if (!query.account) {
     error.value = t('errorNoAccount')
@@ -179,7 +210,9 @@ function kmlUpload (data) {
   }
 }
 
-const kmlUploadProtected = protectFromDoubleClick(kmlUpload)
+function kmlUploadProtected (data) {
+  return protectFromDoubleClick(kmlUpload)(data)
+}
 
 function handleFileChange (data) {
   const file = data.fileList?.[0]?.file
@@ -190,7 +223,9 @@ function handleFileChange (data) {
   }
 }
 
-const handleFileChangeProtected = protectFromDoubleClick(handleFileChange)
+function handleFileChangeProtected (data) {
+  return protectFromDoubleClick(handleFileChange)(data)
+}
 
 function handleDrop (event) {
   const file = event.dataTransfer.files?.[0]
@@ -205,7 +240,9 @@ function handleDrop (event) {
   }
 }
 
-const handleDropProtected = protectFromDoubleClick(handleDrop)
+function handleDropProtected (event) {
+  return protectFromDoubleClick(handleDrop)(event)
+}
 
 function readFileAsText (file) {
   return new Promise((resolve, reject) => {
@@ -287,21 +324,13 @@ async function parseKML () {
   }
 }
 
-function selectAll () {
+function handleMasterCheckboxChange (checked) {
   locations.value.forEach((location) => {
-    location.selected = true
+    if (!location.imported) {
+      location.selected = checked
+    }
   })
 }
-
-const selectAllProtected = protectFromDoubleClick(selectAll)
-
-function selectNone () {
-  locations.value.forEach((location) => {
-    location.selected = false
-  })
-}
-
-const selectNoneProtected = protectFromDoubleClick(selectNone)
 
 function goBackToUpload () {
   step.value = STEPS.UPLOAD
@@ -309,7 +338,9 @@ function goBackToUpload () {
   selectedFile.value = null
 }
 
-const goBackToUploadProtected = protectFromDoubleClick(goBackToUpload)
+function goBackToUploadProtected () {
+  return protectFromDoubleClick(goBackToUpload)()
+}
 
 function togglePause () {
   if (importing.value) {
@@ -321,7 +352,7 @@ function togglePause () {
   }
 }
 
-const togglePauseProtected = function () {
+function togglePauseProtected () {
   let localLock = false
 
   if (localLock) return
@@ -459,7 +490,9 @@ async function importSelected () {
   }
 }
 
-const importSelectedProtected = protectFromDoubleClick(importSelected)
+function importSelectedProtected () {
+  return protectFromDoubleClick(importSelected)()
+}
 
 async function createEntity (entityData) {
   const baseProperties = buildEntityProperties(entityData)
@@ -579,7 +612,7 @@ async function sendEntityToEntu (baseProperties) {
       class="flex h-full flex-col"
     >
       <!-- Sticky header with controls -->
-      <div class="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 p-2 shadow-lg">
+      <div class="sticky top-0 z-10 border-b border-gray-200 p-2">
         <div class="mb-3 flex items-center justify-between">
           <h2 class="text-xl font-semibold text-gray-900">
             {{ importing ? t('importing') : t('reviewLocations') }}
@@ -620,25 +653,7 @@ async function sendEntityToEntu (baseProperties) {
           <p class="text-sm text-gray-600">
             {{ t('foundLocations', locations.length) }}
           </p>
-          <div class="flex gap-2">
-            <n-button
-              text
-              type="primary"
-              size="small"
-              :disabled="buttonLock"
-              @click="selectAllProtected"
-            >
-              {{ t('selectAll') }}
-            </n-button>
-            <n-button
-              text
-              type="primary"
-              size="small"
-              :disabled="buttonLock"
-              @click="selectNoneProtected"
-            >
-              {{ t('selectNone') }}
-            </n-button>
+          <div class="flex items-center gap-2">
             <n-button
               :disabled="!hasSelectedLocations || buttonLock"
               type="primary"
@@ -650,6 +665,24 @@ async function sendEntityToEntu (baseProperties) {
           </div>
         </div>
 
+        <!-- Master checkbox for select all/none -->
+        <div
+          v-if="!importing && locations.length > 0"
+          class="mb-2 flex cursor-pointer items-center gap-2 pl-3"
+          @click="handleMasterCheckboxChange(!masterCheckboxState.checked)"
+        >
+          <n-checkbox
+            :checked="masterCheckboxState.checked"
+            :indeterminate="masterCheckboxState.indeterminate"
+            size="small"
+            @update:checked="handleMasterCheckboxChange"
+            @click.stop
+          />
+          <span class="text-sm text-gray-600">
+            {{ t('selectAll') }}
+          </span>
+        </div>
+
         <!-- Progress bar (visible only during import) -->
         <div
           v-if="importing"
@@ -658,7 +691,7 @@ async function sendEntityToEntu (baseProperties) {
           <div class="h-2 w-full rounded-full bg-gray-200">
             <div
               class="h-2 rounded-full bg-green-600 transition-all duration-300 ease-in-out"
-              :style="{ width: importProgress.percentage + '%' }"
+              :style="progressBarStyle"
             />
           </div>
           <div class="mt-1 text-center text-xs text-gray-500">
@@ -701,18 +734,17 @@ async function sendEntityToEntu (baseProperties) {
 
       <!-- Scrollable locations container -->
       <div class="flex-1 overflow-y-auto pt-3">
-        <div
-          class="rounded-md border border-gray-200"
-        >
+        <div>
           <div
-            v-for="(location, index) in locations"
-            :key="index"
+            v-for="location in locations"
+            :key="`${location.coordinates[0]}-${location.coordinates[1]}-${location.name}`"
             class="flex items-start border-b border-gray-100 p-3 transition-all duration-500 ease-in-out last:border-b-0"
-            :class="[
-              location.imported ? 'bg-green-50' : '',
-              location.imported ? 'border-green-100' : '',
-              location.imported ? 'cursor-default' : importing ? 'cursor-default' : 'cursor-pointer hover:bg-gray-50',
-            ]"
+            :class="{
+              'bg-green-50': location.imported,
+              'border-green-100': location.imported,
+              'cursor-default': location.imported || importing,
+              'cursor-pointer hover:bg-gray-50': !location.imported && !importing,
+            }"
             @click="!location.imported && !importing && (location.selected = !location.selected)"
           >
             <!-- Show check box for non-imported locations -->
@@ -754,7 +786,7 @@ async function sendEntityToEntu (baseProperties) {
                 </span>
                 <span
                   class="ml-1 text-xs text-green-600 transition-all duration-500 ease-in-out"
-                  :style="{ opacity: location.imported ? 1 : 0, maxHeight: location.imported ? '20px' : '0px' }"
+                  :class="getImportedStatusClasses(location)"
                 >({{ t('imported') }})</span>
               </p>
 
@@ -762,7 +794,7 @@ async function sendEntityToEntu (baseProperties) {
               <div
                 v-if="location.description"
                 class="overflow-hidden transition-all duration-500 ease-in-out"
-                :style="{ maxHeight: location.imported ? '0px' : '200px', opacity: location.imported ? 0 : 1 }"
+                :class="getDescriptionClasses(location)"
               >
                 <p class="mt-1 text-sm text-gray-600">
                   {{ location.description }}
@@ -803,57 +835,55 @@ async function sendEntityToEntu (baseProperties) {
 
 <i18n lang="yaml">
 en:
-  errorNoAccount: "No account parameter!"
-  errorNoType: "No type parameter!"
-  errorNoToken: "No token parameter!"
-  errorInvalidFile: "Please select a KML or XML file"
-  errorSelectFile: "Please select a file"
-  errorSelectOneLocation: "Please select at least one location to import"
-  uploadText: "Click or drag a KML file to this area to upload."
-  reviewLocations: "Review Locations"
-  backToUpload: "Back to File Selection"
-  foundLocations: "Found {n} location(s). Select which ones to import:"
-  selectAll: "Select All"
-  selectNone: "Select None"
-  unnamedLocation: "Unnamed Location"
-  importSelected: "Import | Import {n} Selected Location | Import {n} Selected Locations"
-  importingProgress: "Importing... {current}/{total} ({percentage}%)"
-  importPaused: "Paused... {current}/{total} ({percentage}%)"
-  importing: "Importing..."
-  pauseImport: "Pause"
-  resumeImport: "Resume"
-  importResults: "Import Results"
-  successfullyImported: "Successfully Imported ({n})"
-  importErrors: "Import Errors ({n})"
-  importStopped: "Import Stopped"
-  importStoppedMessage: "Import was stopped after the first error occurred. {skipped} location(s) were not processed."
-  error: "Error"
-  imported: "Imported"
+  errorNoAccount: No account parameter!
+  errorNoType: No type parameter!
+  errorNoToken: No token parameter!
+  errorInvalidFile: Please select a KML or XML file
+  errorSelectFile: Please select a file
+  errorSelectOneLocation: Please select at least one location to import
+  uploadText: Click or drag a KML file to this area to upload.
+  reviewLocations: Review Locations
+  backToUpload: Back to File Selection
+  foundLocations: Found {n} location(s). Select which ones to import
+  selectAll: Select all
+  unnamedLocation: Unnamed Location
+  importSelected: Import | Import the Selected Location | Import {n} Selected Locations
+  importingProgress: Importing... {current}/{total} ({percentage}%)
+  importPaused: Paused... {current}/{total} ({percentage}%)
+  importing: Importing...
+  pauseImport: Pause
+  resumeImport: Resume
+  importResults: Import Results
+  successfullyImported: Successfully Imported | Successfully Imported the Location | Successfully Imported {n} Locations
+  importErrors: Import Error | Import Error | Import Errors ({n})
+  importStopped: Import Stopped
+  importStoppedMessage: Import was stopped after the first error occurred. No locations were not processed. | Import was stopped after the first error occurred. The remaining single location was not processed. | Import was stopped after the first error occurred. {skipped} locations were not processed.
+  error: Error
+  imported: Imported
 et:
-  errorNoAccount: "Puudub 'account' parameeter!"
-  errorNoType: "Puudub 'type' parameeter!"
-  errorNoToken: "Puudub 'token' parameeter!"
-  errorInvalidFile: "Palun valige KML või XML fail"
-  errorSelectFile: "Palun valige fail"
-  errorSelectOneLocation: "Palun valige vähemalt üks asukoht importimiseks"
-  uploadText: "Lohista KML fail siia või klõpsa siin, et fail valida."
-  reviewLocations: "Asukohtade ülevaade"
-  backToUpload: "Tagasi faili valikusse"
-  foundLocations: "Leitud {n} asukoht(a). Valige, millised importida:"
-  selectAll: "Vali kõik"
-  selectNone: "Tühista valik"
-  unnamedLocation: "Nimetu asukoht"
-  importSelected: "Impordi | Impordi {n} valitud asukoht | Impordi {n} valitud asukohta"
-  importingProgress: "Importimine... {current}/{total} ({percentage}%)"
-  importPaused: "Peatatud... {current}/{total} ({percentage}%)"
-  importing: "Importimine..."
-  pauseImport: "Peata"
-  resumeImport: "Jätka"
-  importResults: "Importimise tulemused"
-  successfullyImported: "Edukalt imporditud ({n})"
-  importErrors: "Importimise vead ({n})"
-  importStopped: "Importimine peatatud"
-  importStoppedMessage: "Importimine peatati pärast esimest viga. {skipped} asukoht(a) jäi töötlemata."
-  error: "Viga"
-  imported: "Imporditud"
+  errorNoAccount: Puudub 'account' parameeter!
+  errorNoType: Puudub 'type' parameeter!
+  errorNoToken: Puudub 'token' parameeter!
+  errorInvalidFile: Palun valige KML või XML fail
+  errorSelectFile: Palun valige fail
+  errorSelectOneLocation: Palun valige vähemalt üks asukoht importimiseks
+  uploadText: Lohista KML fail siia või klõpsa siin, et fail valida.
+  reviewLocations: Asukohtade ülevaade
+  backToUpload: Tagasi faili valikusse
+  foundLocations: Leitud {n} asukoht(a). Valige, millised importida
+  selectAll: Vali kõik
+  unnamedLocation: Nimetu asukoht
+  importSelected: Impordi | Impordi valitud asukoht | Impordi {n} valitud asukohta
+  importingProgress: Importimine... {current}/{total} ({percentage}%)
+  importPaused: Peatatud... {current}/{total} ({percentage}%)
+  importing: Importimine...
+  pauseImport: Peata
+  resumeImport: Jätka
+  importResults: Importimise tulemused
+  successfullyImported: Edukalt imporditud | Edukalt imporditud üks asukoht | Edukalt imporditud {n} asukohta
+  importErrors: Importimise viga | Importimise viga | Importimise vead ({n})
+  importStopped: Importimine peatatud
+  importStoppedMessage: Importimine peatati pärast esimest viga. Ühtegi asukohta ei jäänud töötlemata. | Importimine peatati pärast esimest viga. Üks asukoht jäi töötlemata. | Importimine peatati pärast esimest viga. {skipped} asukohta jäi töötlemata.
+  error: Viga
+  imported: Imporditud
 </i18n>
