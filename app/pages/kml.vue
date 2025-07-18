@@ -8,6 +8,7 @@
 
 import { ref, computed, onMounted } from 'vue'
 import TurndownService from 'turndown'
+import { marked } from 'marked'
 import { NUpload, NUploadDragger, NSpin, NCheckbox, NButton, NProgress } from 'naive-ui'
 import MyIcon from '../components/my/icon.vue'
 
@@ -75,12 +76,6 @@ const masterCheckboxState = computed(() => {
   }
 })
 
-function getImportedStatusClasses (location) {
-  return location.imported
-    ? 'opacity-100 max-h-5'
-    : 'opacity-0 max-h-0'
-}
-
 function getDescriptionClasses (location) {
   return location.imported
     ? 'max-h-0 opacity-0'
@@ -142,6 +137,29 @@ function convertToMarkdown (description) {
   markdown = convertUrlsToMarkdownLinks(markdown)
 
   return markdown
+}
+
+/**
+ * Converts markdown text to HTML for safe display
+ */
+function convertMarkdownToHtml (markdown) {
+  if (!markdown) return ''
+  
+  try {
+    // Configure marked with safe options
+    marked.setOptions({
+      breaks: true, // Convert \n to <br>
+      gfm: true, // GitHub Flavored Markdown
+      sanitize: false, // We'll handle sanitization manually if needed
+      smartypants: false // Don't convert quotes/dashes
+    })
+    
+    return marked(markdown)
+  }
+  catch (error) {
+    console.warn('Failed to convert markdown to HTML:', error)
+    return markdown // Fallback to plain text
+  }
 }
 
 function extractHtmlContent (description) {
@@ -773,10 +791,6 @@ async function sendEntityToEntu (baseProperties) {
                 <span class="ml-1 text-sm text-gray-500">
                   {{ location.coordinates[1].toFixed(6) }}, {{ location.coordinates[0].toFixed(6) }}
                 </span>
-                <span
-                  class="ml-1 text-xs text-green-600 transition-all duration-500 ease-in-out"
-                  :class="getImportedStatusClasses(location)"
-                >({{ t('imported') }})</span>
               </p>
 
               <!-- Description - smoothly collapses when imported -->
@@ -785,9 +799,10 @@ async function sendEntityToEntu (baseProperties) {
                 class="overflow-hidden transition-all duration-500 ease-in-out"
                 :class="getDescriptionClasses(location)"
               >
-                <p class="mt-1 text-sm text-gray-600">
-                  {{ location.description }}
-                </p>
+                <div
+                  class="prose prose-sm mt-1 max-w-none text-gray-600"
+                  v-html="convertMarkdownToHtml(location.description)"
+                />
               </div>
             </div>
           </div>
@@ -842,13 +857,10 @@ en:
   importing: Importing...
   pauseImport: Pause
   resumeImport: Resume
-  importResults: Import Results
-  successfullyImported: Successfully Imported | Successfully Imported the Location | Successfully Imported {n} Locations
   importErrors: Import Error | Import Error | Import Errors ({n})
   importStopped: Import Stopped
   importStoppedMessage: Import was stopped after the first error occurred. No locations were not processed. | Import was stopped after the first error occurred. The remaining single location was not processed. | Import was stopped after the first error occurred. {skipped} locations were not processed.
   error: Error
-  imported: Imported
 et:
   errorNoAccount: Puudub 'account' parameeter!
   errorNoType: Puudub 'type' parameeter!
@@ -868,11 +880,8 @@ et:
   importing: Importimine...
   pauseImport: Peata
   resumeImport: Jätka
-  importResults: Importimise tulemused
-  successfullyImported: Edukalt imporditud | Edukalt imporditud üks asukoht | Edukalt imporditud {n} asukohta
   importErrors: Importimise viga | Importimise viga | Importimise vead ({n})
   importStopped: Importimine peatatud
   importStoppedMessage: Importimine peatati pärast esimest viga. Ühtegi asukohta ei jäänud töötlemata. | Importimine peatati pärast esimest viga. Üks asukoht jäi töötlemata. | Importimine peatati pärast esimest viga. {skipped} asukohta jäi töötlemata.
   error: Viga
-  imported: Imporditud
 </i18n>
