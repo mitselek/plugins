@@ -7,16 +7,13 @@
 */
 
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
-import * as toGeoJSON from '@tmcw/togeojson'
 import TurndownService from 'turndown'
 import { NUpload, NUploadDragger, NSpin, NCheckbox, NButton } from 'naive-ui'
 import MyIcon from '../components/my/icon.vue'
 
 const { t } = useI18n()
 const runtimeConfig = useRuntimeConfig()
-const route = useRoute()
-const { query } = route
+const { query } = useRoute()
 
 const STEPS = {
   UPLOAD: 'upload',
@@ -351,36 +348,36 @@ async function parseKML () {
       throw new Error('Invalid KML file: XML parsing failed')
     }
 
-    const geoJson = toGeoJSON.kml(kmlDoc)
     const extractedLocations = []
+    const placemarks = kmlDoc.querySelectorAll('Placemark')
 
-    if (geoJson.features) {
-      for (const feature of geoJson.features) {
-        if (feature.geometry && feature.geometry.type === 'Point') {
-          const coordinates = feature.geometry.coordinates
+    for (const placemark of placemarks) {
+      const point = placemark.querySelector('Point')
+      if (!point) continue
 
-          if (
-            !Array.isArray(coordinates)
-            || coordinates.length < 2
-            || typeof coordinates[0] !== 'number'
-            || typeof coordinates[1] !== 'number'
-            || isNaN(coordinates[0])
-            || isNaN(coordinates[1])
-          ) {
-            continue
-          }
+      const coordinatesText = point.querySelector('coordinates')?.textContent?.trim()
+      if (!coordinatesText) continue
 
-          const location = {
-            name: (feature.properties?.name || '').trim(),
-            description: convertToMarkdown(feature.properties?.description),
-            coordinates: coordinates,
-            selected: true,
-            imported: false,
-            entityId: null
-          }
-          extractedLocations.push(location)
-        }
+      const coordParts = coordinatesText.split(',')
+      if (coordParts.length < 2) continue
+
+      const longitude = parseFloat(coordParts[0])
+      const latitude = parseFloat(coordParts[1])
+
+      if (isNaN(longitude) || isNaN(latitude)) continue
+
+      const name = placemark.querySelector('name')?.textContent?.trim() || ''
+      const description = placemark.querySelector('description')?.textContent?.trim() || ''
+
+      const location = {
+        name,
+        description: convertToMarkdown(description),
+        coordinates: [longitude, latitude],
+        selected: true,
+        imported: false,
+        entityId: null
       }
+      extractedLocations.push(location)
     }
 
     if (extractedLocations.length === 0) {
