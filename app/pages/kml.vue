@@ -792,6 +792,7 @@ async function sendEntityToEntu (baseProperties) {
                     @click="handleDescriptionClick"
                     v-html="convertMarkdownToHtml(location.description)"
                   />
+                  <!-- v-html safe: content sanitized through HTML→Markdown→HTML pipeline -->
                   <!-- Fade indicator for overflow content -->
                   <div
                     class="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white via-white/80 to-transparent opacity-0 transition-opacity duration-300"
