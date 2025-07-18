@@ -7,7 +7,7 @@ defineProps({
 
 <template>
   <nuxt-icon
-    class="text-md"
+    class="text-base"
     filled
     :name="icon"
   />

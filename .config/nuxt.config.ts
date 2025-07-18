@@ -15,7 +15,7 @@ export default defineNuxtConfig({
     discogsKey: '',
     entuKey: '',
     public: {
-      entuUrl: '',
+      entuUrl: ''
     }
   },
   future: {

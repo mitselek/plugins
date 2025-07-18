@@ -4,3 +4,14 @@
 .output
 dist
 node_modules
+
+# Ignore everything in .ai_docs directory
+.ai_docs/*
+# But allow the PRPs directory to be tracked
+!.ai_docs/PRPs/
+# Allow examples directory (needed to access files inside)
+!.ai_docs/examples/
+# Ignore all files inside examples directory
+.ai_docs/examples/*
+# But make exception for this specific file
+!.ai_docs/examples/entity-types-creation.http
