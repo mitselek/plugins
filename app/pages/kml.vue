@@ -8,7 +8,7 @@
 
 // IMPORTS AND DEPENDENCIES
 // ======================================
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import * as toGeoJSON from '@tmcw/togeojson'
 import TurndownService from 'turndown'
@@ -38,6 +38,10 @@ const importing = ref(false)
 const paused = ref(false)
 const error = ref('')
 const buttonLock = ref(false) // Prevents double-clicking on action buttons
+const locationRefs = ref([]) // References to location elements for auto-scroll
+const scrollContainer = ref(null) // Reference to the scrollable container
+const userScrollPaused = ref(false) // Tracks if auto-scroll is paused due to user interaction
+const userScrollTimer = ref(null) // Timer for resuming auto-scroll after user interaction
 const importProgress = ref({
   current: 0,
   total: 0,
@@ -84,6 +88,13 @@ onMounted(async () => {
   }
 })
 
+// Cleanup scroll listener when component is unmounted
+onUnmounted(() => {
+  if (userScrollTimer.value) {
+    clearTimeout(userScrollTimer.value)
+  }
+})
+
 // UTILITY FUNCTIONS
 // ======================================
 /**
@@ -109,6 +120,115 @@ function protectFromDoubleClick (fn) {
       }, 500) // 500ms delay
     }
   }
+}
+
+/**
+ * Scrolls to keep the currently importing location visible in the viewport with enhanced easing
+ * @param {number} index - Index of the location being imported
+ */
+function scrollToLocation (index) {
+  const element = locationRefs.value[index]
+  if (!element) return
+
+  // Get current scroll position and element position
+  const container = element.closest('.overflow-y-auto')
+  if (!container) return
+
+  // Store container reference for user scroll detection
+  if (!scrollContainer.value) {
+    scrollContainer.value = container
+    setupScrollListener()
+  }
+
+  // Don't auto-scroll if user recently scrolled manually
+  if (userScrollPaused.value) {
+    return
+  }
+
+  // Calculate the current scroll position and target position
+  const currentScrollTop = container.scrollTop
+  const elementOffsetTop = element.offsetTop
+  const containerHeight = container.clientHeight
+
+  // Calculate target scroll position (center the element)
+  const targetScrollTop = elementOffsetTop - (containerHeight / 2) + (element.offsetHeight / 2)
+
+  // Never scroll backwards - only scroll forward or stay in place
+  if (targetScrollTop <= currentScrollTop) {
+    return
+  }
+
+  // Calculate distance for dynamic speed adjustment
+  const distance = Math.abs(targetScrollTop - currentScrollTop)
+
+  // Adjust duration based on distance (300ms to 1000ms range)
+  const baseDuration = 300
+  const maxDuration = 1000
+  const duration = Math.min(baseDuration + (distance / 2), maxDuration)
+
+  // Enhanced easing function with smooth acceleration and deceleration
+  const easeInOutCubic = (t) => {
+    return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1
+  }
+
+  // Smooth scroll animation
+  const startTime = performance.now()
+  const startScrollTop = currentScrollTop
+
+  const animateScroll = (currentTime) => {
+    const elapsed = currentTime - startTime
+    const progress = Math.min(elapsed / duration, 1)
+
+    // Apply easing
+    const easedProgress = easeInOutCubic(progress)
+    const newScrollTop = startScrollTop + (targetScrollTop - startScrollTop) * easedProgress
+
+    container.scrollTop = newScrollTop
+
+    if (progress < 1) {
+      requestAnimationFrame(animateScroll)
+    }
+  }
+
+  requestAnimationFrame(animateScroll)
+}
+
+/**
+ * Sets up scroll listener to detect user scroll and pause auto-scrolling
+ */
+function setupScrollListener () {
+  if (!scrollContainer.value) return
+
+  let scrollTimeout
+  let lastScrollTime = 0
+
+  const handleScroll = () => {
+    const currentTime = Date.now()
+
+    // Clear existing timeout
+    if (scrollTimeout) {
+      clearTimeout(scrollTimeout)
+    }
+
+    // Only consider it user scroll if enough time has passed since last auto-scroll
+    if (currentTime - lastScrollTime > 100) {
+      userScrollPaused.value = true
+
+      // Clear existing timer
+      if (userScrollTimer.value) {
+        clearTimeout(userScrollTimer.value)
+      }
+
+      // Resume auto-scroll after 5 seconds of no user interaction
+      userScrollTimer.value = setTimeout(() => {
+        userScrollPaused.value = false
+      }, 5000)
+    }
+
+    lastScrollTime = currentTime
+  }
+
+  scrollContainer.value.addEventListener('scroll', handleScroll, { passive: true })
 }
 
 /**
@@ -469,6 +589,9 @@ async function importSelected () {
 
       const { location } = importProgress.value.pendingLocations[i]
 
+      // Auto-scroll to keep the current location visible
+      scrollToLocation(i)
+
       try {
         // Validate location data
         if (!location.coordinates || location.coordinates.length < 2) {
@@ -809,7 +932,8 @@ async function createEntity (entityData) {
           <div
             v-for="(location, index) in locations"
             :key="index"
-            class="flex items-start border-b border-gray-100 p-3 last:border-b-0"
+            :ref="el => locationRefs[index] = el"
+            class="flex items-start border-b border-gray-100 p-3 transition-all duration-500 ease-in-out last:border-b-0"
             :class="[
               location.imported ? 'bg-green-50' : '',
               location.imported ? 'border-green-100' : '',
@@ -847,37 +971,47 @@ async function createEntity (entityData) {
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             </div>
-            <div class="ml-3 min-w-0 flex-1">
-              <!-- Imported location - collapsed view -->
-              <div v-if="location.imported">
-                <p class="text-sm font-medium text-gray-900">
-                  <a
-                    :href="`${runtimeConfig.public.entuUrl}/${query.account}/${location.entityId}`"
-                    target="_blank"
-                    class="text-green-600 hover:text-green-800"
-                  >
-                    {{ location.name || t('unnamedLocation') }}
-                  </a>
-                  <span class="ml-1 text-sm text-gray-500">
-                    {{ location.coordinates[1].toFixed(6) }}, {{ location.coordinates[0].toFixed(6) }}
-                  </span>
-                  <span class="ml-1 text-xs text-green-600">({{ t('imported') }})</span>
-                </p>
-              </div>
-
-              <!-- Not imported location - full view -->
-              <div v-else>
-                <p class="text-sm font-medium text-gray-900">
+            <div class="ml-3 min-w-0 flex-1 transition-all duration-500 ease-in-out">
+              <!-- Location name - always shown but changes link/color when imported -->
+              <p class="text-sm font-medium text-gray-900">
+                <a
+                  v-if="location.imported"
+                  :href="`${runtimeConfig.public.entuUrl}/${query.account}/${location.entityId}`"
+                  target="_blank"
+                  class="text-green-600 hover:text-green-800"
+                >
                   {{ location.name || t('unnamedLocation') }}
-                </p>
+                </a>
+                <span v-else>
+                  {{ location.name || t('unnamedLocation') }}
+                </span>
+                <span class="ml-1 text-sm text-gray-500">
+                  {{ location.coordinates[1].toFixed(6) }}, {{ location.coordinates[0].toFixed(6) }}
+                </span>
+                <span
+                  class="ml-1 text-xs text-green-600 transition-all duration-500 ease-in-out"
+                  :style="{ opacity: location.imported ? 1 : 0, maxHeight: location.imported ? '20px' : '0px' }"
+                >({{ t('imported') }})</span>
+              </p>
+
+              <!-- Coordinates label - smoothly disappears when imported -->
+              <div
+                class="overflow-hidden transition-all duration-500 ease-in-out"
+                :style="{ opacity: location.imported ? 0 : 1, maxHeight: location.imported ? '0px' : '24px' }"
+              >
                 <p class="text-sm text-gray-500">
                   {{ t('coordinates') }}: {{ location.coordinates[1].toFixed(6) }},
                   {{ location.coordinates[0].toFixed(6) }}
                 </p>
-                <p
-                  v-if="location.description"
-                  class="mt-1 text-sm text-gray-600"
-                >
+              </div>
+
+              <!-- Description - smoothly collapses when imported -->
+              <div
+                v-if="location.description"
+                class="overflow-hidden transition-all duration-500 ease-in-out"
+                :style="{ maxHeight: location.imported ? '0px' : '200px', opacity: location.imported ? 0 : 1 }"
+              >
+                <p class="mt-1 text-sm text-gray-600">
                   {{ location.description }}
                 </p>
               </div>
