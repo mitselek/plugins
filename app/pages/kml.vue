@@ -6,7 +6,7 @@
   Architecture: Client-side processing with direct API calls to Entu.
 */
 
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import TurndownService from 'turndown'
 import { NUpload, NUploadDragger, NSpin, NCheckbox, NButton } from 'naive-ui'
 import MyIcon from '../components/my/icon.vue'
@@ -22,11 +22,7 @@ const STEPS = {
 
 const ANIMATION_DURATIONS = {
   BUTTON_LOCK: 500, // ms - prevents double-clicking
-  TOGGLE_PAUSE_LOCK: 100, // ms - minimal lock for pause/resume
-  SCROLL_BASE: 300, // ms - base scroll animation duration
-  SCROLL_MAX: 1000, // ms - maximum scroll animation duration
-  USER_SCROLL_RESUME: 5000, // ms - time before auto-scroll resumes after user interaction
-  SCROLL_DEBOUNCE: 100 // ms - debounce threshold for user scroll detection
+  TOGGLE_PAUSE_LOCK: 100 // ms - minimal lock for pause/resume
 }
 
 const CONTENT_LIMITS = {
@@ -42,10 +38,6 @@ const importing = ref(false)
 const paused = ref(false)
 const error = ref('')
 const buttonLock = ref(false) // Prevents double-clicking on action buttons
-const locationRefs = ref([]) // References to location elements for auto-scroll
-const scrollContainer = ref(null) // Reference to the scrollable container
-const userScrollPaused = ref(false) // Tracks if auto-scroll is paused due to user interaction
-const userScrollTimer = ref(null) // Timer for resuming auto-scroll after user interaction
 const importProgress = ref({
   current: 0,
   total: 0,
@@ -85,12 +77,6 @@ onMounted(async () => {
   }
 })
 
-onUnmounted(() => {
-  if (userScrollTimer.value) {
-    clearTimeout(userScrollTimer.value)
-  }
-})
-
 // UTILITY FUNCTIONS
 // ======================================
 /**
@@ -111,100 +97,6 @@ function protectFromDoubleClick (fn) {
       }, ANIMATION_DURATIONS.BUTTON_LOCK)
     }
   }
-}
-
-/**
- * Scrolls to keep the currently importing location visible with enhanced easing
- */
-function scrollToLocation (index) {
-  const element = locationRefs.value[index]
-  if (!element) return
-
-  const container = element.closest('.overflow-y-auto')
-  if (!container) return
-
-  if (!scrollContainer.value) {
-    scrollContainer.value = container
-    setupScrollListener()
-  }
-
-  if (userScrollPaused.value) {
-    return
-  }
-
-  const currentScrollTop = container.scrollTop
-  const elementOffsetTop = element.offsetTop
-  const containerHeight = container.clientHeight
-
-  const targetScrollTop = elementOffsetTop - (containerHeight / 2) + (element.offsetHeight / 2)
-
-  // Never scroll backwards - only scroll forward or stay in place
-  if (targetScrollTop <= currentScrollTop) {
-    return
-  }
-
-  const distance = Math.abs(targetScrollTop - currentScrollTop)
-
-  const baseDuration = ANIMATION_DURATIONS.SCROLL_BASE
-  const maxDuration = ANIMATION_DURATIONS.SCROLL_MAX
-  const duration = Math.min(baseDuration + (distance / 2), maxDuration)
-
-  const easeInOutCubic = (t) => {
-    return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1
-  }
-
-  const startTime = performance.now()
-  const startScrollTop = currentScrollTop
-
-  const animateScroll = (currentTime) => {
-    const elapsed = currentTime - startTime
-    const progress = Math.min(elapsed / duration, 1)
-
-    const easedProgress = easeInOutCubic(progress)
-    const newScrollTop = startScrollTop + (targetScrollTop - startScrollTop) * easedProgress
-
-    container.scrollTop = newScrollTop
-
-    if (progress < 1) {
-      requestAnimationFrame(animateScroll)
-    }
-  }
-
-  requestAnimationFrame(animateScroll)
-}
-
-/**
- * Sets up scroll listener to detect user scroll and pause auto-scrolling
- */
-function setupScrollListener () {
-  if (!scrollContainer.value) return
-
-  let scrollTimeout
-  let lastScrollTime = 0
-
-  const handleScroll = () => {
-    const currentTime = Date.now()
-
-    if (scrollTimeout) {
-      clearTimeout(scrollTimeout)
-    }
-
-    if (currentTime - lastScrollTime > ANIMATION_DURATIONS.SCROLL_DEBOUNCE) {
-      userScrollPaused.value = true
-
-      if (userScrollTimer.value) {
-        clearTimeout(userScrollTimer.value)
-      }
-
-      userScrollTimer.value = setTimeout(() => {
-        userScrollPaused.value = false
-      }, ANIMATION_DURATIONS.USER_SCROLL_RESUME)
-    }
-
-    lastScrollTime = currentTime
-  }
-
-  scrollContainer.value.addEventListener('scroll', handleScroll, { passive: true })
 }
 
 /**
@@ -491,8 +383,6 @@ async function importSelected () {
       }
 
       const { location } = importProgress.value.pendingLocations[i]
-
-      scrollToLocation(i)
 
       try {
         if (!location.coordinates || location.coordinates.length < 2) {
@@ -817,7 +707,6 @@ async function sendEntityToEntu (baseProperties) {
           <div
             v-for="(location, index) in locations"
             :key="index"
-            :ref="el => locationRefs[index] = el"
             class="flex items-start border-b border-gray-100 p-3 transition-all duration-500 ease-in-out last:border-b-0"
             :class="[
               location.imported ? 'bg-green-50' : '',
@@ -868,17 +757,6 @@ async function sendEntityToEntu (baseProperties) {
                   :style="{ opacity: location.imported ? 1 : 0, maxHeight: location.imported ? '20px' : '0px' }"
                 >({{ t('imported') }})</span>
               </p>
-
-              <!-- Coordinates label - smoothly disappears when imported -->
-              <div
-                class="overflow-hidden transition-all duration-500 ease-in-out"
-                :style="{ opacity: location.imported ? 0 : 1, maxHeight: location.imported ? '0px' : '24px' }"
-              >
-                <p class="text-sm text-gray-500">
-                  {{ t('coordinates') }}: {{ location.coordinates[1].toFixed(6) }},
-                  {{ location.coordinates[0].toFixed(6) }}
-                </p>
-              </div>
 
               <!-- Description - smoothly collapses when imported -->
               <div
@@ -938,7 +816,6 @@ en:
   selectAll: "Select All"
   selectNone: "Select None"
   unnamedLocation: "Unnamed Location"
-  coordinates: "Coordinates"
   importSelected: "Import | Import {n} Selected Location | Import {n} Selected Locations"
   importingProgress: "Importing... {current}/{total} ({percentage}%)"
   importPaused: "Paused... {current}/{total} ({percentage}%)"
@@ -950,7 +827,6 @@ en:
   importErrors: "Import Errors ({n})"
   importStopped: "Import Stopped"
   importStoppedMessage: "Import was stopped after the first error occurred. {skipped} location(s) were not processed."
-  retryFailedImport: "Retry Failed Import"
   error: "Error"
   imported: "Imported"
 et:
@@ -967,7 +843,6 @@ et:
   selectAll: "Vali kõik"
   selectNone: "Tühista valik"
   unnamedLocation: "Nimetu asukoht"
-  coordinates: "Koordinaadid"
   importSelected: "Impordi | Impordi {n} valitud asukoht | Impordi {n} valitud asukohta"
   importingProgress: "Importimine... {current}/{total} ({percentage}%)"
   importPaused: "Peatatud... {current}/{total} ({percentage}%)"
@@ -979,7 +854,6 @@ et:
   importErrors: "Importimise vead ({n})"
   importStopped: "Importimine peatatud"
   importStoppedMessage: "Importimine peatati pärast esimest viga. {skipped} asukoht(a) jäi töötlemata."
-  retryFailedImport: "Proovi ebaõnnestunud importi uuesti"
   error: "Viga"
   imported: "Imporditud"
 </i18n>
