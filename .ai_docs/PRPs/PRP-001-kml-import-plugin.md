@@ -139,7 +139,7 @@ function convertMarkdownToHtml(markdown) {
 **Example URL:**
 
 ```url
-/kml?account=esmuuseum&token=abc123&parent=686938681749f351b9c830c8&type=686914211749f351b9c82f28&locale=et
+/kml?account=esmuuseum&token=abc123&parent=686938681749f351b9c830c8&type=686914211749f351b9c82f28
 ```
 
 ### 4.2. Data Mapping
@@ -153,6 +153,7 @@ function convertMarkdownToHtml(markdown) {
 | `<coordinates>` longitude | `coordParts[0]` (parsed float) | `long` | First coordinate value |
 | `<coordinates>` latitude | `coordParts[1]` (parsed float) | `lat` | Second coordinate value |
 | `<coordinates>` elevation | `coordParts[2]` | *ignored* | Third coordinate ignored |
+
 | - | `query.parent` | `_parent` | Links to parent map entity |
 | - | `query.type` | `_type` | Configurable entity type |
 
