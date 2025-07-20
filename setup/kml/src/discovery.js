@@ -5,6 +5,9 @@
 
 import { Logger } from './lib/logger.js'
 
+// Constants
+const MENU_SEARCH_LIMIT = 50 // Allow finding multiple menus with same group
+
 export class DiscoveryService {
   constructor (apiClient, environment = null) {
     this.api = apiClient
@@ -138,7 +141,8 @@ export class DiscoveryService {
     if (!menuEntities.kaartMenuEntityId || !menuEntities.asukohtMenuEntityId) {
       // Search for KML menus by group
       const kmlMenus = await this.api.findEntity(
-        `group.string.et=Kaardirakendus&_type.reference=${menuDefinitionId}&props=_id,name,entity,group`, 10
+        `group.string.et=Kaardirakendus&_type.reference=${menuDefinitionId}&props=_id,name,entity,group`,
+        MENU_SEARCH_LIMIT
       )
 
       if (kmlMenus.length > 0) {

@@ -1,9 +1,30 @@
 /**
  * Setup Service - Pure Entity Creation Operations
- * Creates missing entities based on discovery results
+ * Creates missing entities, properties, and relationships based on discovery results
  */
 
 import { Logger } from './lib/logger.js'
+
+// Constants for property ordering
+const PROPERTY_ORDINALS = {
+  // Kaart properties
+  KAART_NAME: 1,
+  KAART_DESCRIPTION: 2,
+  KAART_URL: 3,
+  // Asukoht properties
+  ASUKOHT_NAME: 1,
+  ASUKOHT_DESCRIPTION: 2,
+  ASUKOHT_LONGITUDE: 3,
+  ASUKOHT_LATITUDE: 4,
+  ASUKOHT_PHOTO: 5,
+  ASUKOHT_LINK: 6
+}
+
+// Constants for menu sorting
+const MENU_SORT_ORDER = {
+  KAART_MENU: 100,
+  ASUKOHT_MENU: 200
+}
 
 export class SetupService {
   constructor (apiClient, environment) {
@@ -77,7 +98,7 @@ export class SetupService {
         entityType: 'kaart',
         public: true,
         search: true,
-        ordinal: 1
+        ordinal: PROPERTY_ORDINALS.KAART_NAME
       },
       {
         name: 'kirjeldus',
@@ -89,7 +110,7 @@ export class SetupService {
         markdown: true,
         public: true,
         search: true,
-        ordinal: 2
+        ordinal: PROPERTY_ORDINALS.KAART_DESCRIPTION
       },
       {
         name: 'url',
@@ -100,7 +121,7 @@ export class SetupService {
         entityType: 'kaart',
         public: true,
         multilingual: false,
-        ordinal: 3
+        ordinal: PROPERTY_ORDINALS.KAART_URL
       },
       // Asukoht properties
       {
@@ -112,7 +133,7 @@ export class SetupService {
         entityType: 'asukoht',
         public: true,
         search: true,
-        ordinal: 1
+        ordinal: PROPERTY_ORDINALS.ASUKOHT_NAME
       },
       {
         name: 'kirjeldus',
@@ -124,7 +145,7 @@ export class SetupService {
         markdown: true,
         public: true,
         search: true,
-        ordinal: 2
+        ordinal: PROPERTY_ORDINALS.ASUKOHT_DESCRIPTION
       },
       {
         name: 'long',
@@ -134,7 +155,7 @@ export class SetupService {
         entity: this.env.entities.asukohtEntityDefinitionId,
         entityType: 'asukoht',
         public: true,
-        ordinal: 3
+        ordinal: PROPERTY_ORDINALS.ASUKOHT_LONGITUDE
       },
       {
         name: 'lat',
@@ -144,7 +165,7 @@ export class SetupService {
         entity: this.env.entities.asukohtEntityDefinitionId,
         entityType: 'asukoht',
         public: true,
-        ordinal: 4
+        ordinal: PROPERTY_ORDINALS.ASUKOHT_LATITUDE
       },
       {
         name: 'photo',
@@ -154,7 +175,7 @@ export class SetupService {
         entity: this.env.entities.asukohtEntityDefinitionId,
         entityType: 'asukoht',
         public: true,
-        ordinal: 5
+        ordinal: PROPERTY_ORDINALS.ASUKOHT_PHOTO
       },
       {
         name: 'link',
@@ -165,7 +186,7 @@ export class SetupService {
         entityType: 'asukoht',
         public: true,
         multilingual: false,
-        ordinal: 6
+        ordinal: PROPERTY_ORDINALS.ASUKOHT_LINK
       }
     ]
 
@@ -222,7 +243,7 @@ export class SetupService {
         group_et: 'Kaardirakendus',
         group_en: 'Map App',
         entity: this.env.entities.kaartEntityDefinitionId,
-        sort: 100,
+        sort: MENU_SORT_ORDER.KAART_MENU,
         type: 'kaart'
       },
       {
@@ -231,7 +252,7 @@ export class SetupService {
         group_et: 'Kaardirakendus',
         group_en: 'Map App',
         entity: this.env.entities.asukohtEntityDefinitionId,
-        sort: 200,
+        sort: MENU_SORT_ORDER.ASUKOHT_MENU,
         type: 'asukoht'
       }
     ]
