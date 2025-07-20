@@ -69,9 +69,9 @@ async function main () {
     }
 
     // Continue with setup
-    await setup.createProperties()
+    await setup.createProperties(env.properties)
     await setup.createMenus()
-    await setup.setupRelationships()
+    await setup.setupRelationships(env.relationships)
 
     // Update environment file
     await env.saveToFile()

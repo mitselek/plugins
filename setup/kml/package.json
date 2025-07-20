@@ -10,8 +10,7 @@
   },
   "scripts": {
     "discover": "node bin/discover.js",
-    "setup": "node bin/setup.js",
-    "start": "npm run discover && npm run setup",
+    "start": "npm run discover && node bin/setup.js",
     "test": "echo \"No tests specified\" && exit 0"
   },
   "keywords": ["entu", "map", "setup", "cli", "discovery"],

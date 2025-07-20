@@ -20,15 +20,19 @@ See [setup/kml/README.md](./setup/kml/README.md) for detailed setup instructions
 ## Available Plugins
 
 ### CSV Import Plugin (`/csv`)
+
 Import data from CSV files with support for multiple encodings.
 
 ### Discogs Import Plugin (`/discogs`)
+
 Search and import music release data from the Discogs database.
 
 ### Ester Import Plugin (`/ester`)
+
 Search and import data from the Ester library system.
 
 ### Template Import Plugin (`/template`)
+
 Import entity templates and their properties.
 
 ## Parameters
@@ -36,17 +40,19 @@ Import entity templates and their properties.
 All plugins use the same parameter structure:
 
 ### Required Parameters
+
 - **`account`** - The Entu account where entities will be created
 - **`type`** - The entity type/class for new entities
 - **`token`** - Bearer token for API authentication
 
 ### Optional Parameters
+
 - **`parent`** - Reference ID of parent entity for hierarchical relationships
 - **`locale`** - Interface language (supported: 'en', 'et', etc.)
 
 ## Usage Examples
 
-```
+```text
 /csv?account=myaccount&type=book&token=abc123&parent=library1&locale=et
 /discogs?account=musicdb&type=album&token=xyz789&parent=collection1
 /ester?account=library&type=book&token=def456&locale=en

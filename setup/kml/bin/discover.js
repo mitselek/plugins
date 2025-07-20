@@ -33,7 +33,10 @@ async function main () {
     const discoveredEntities = await discovery.discoverAll()
 
     // Update environment with discoveries
-    Object.assign(env.entities, discoveredEntities)
+    const { properties, relationships, ...entities } = discoveredEntities
+    Object.assign(env.entities, entities)
+    env.properties = properties || {}
+    env.relationships = relationships || {}
 
     // Save results
     await env.saveToFile()

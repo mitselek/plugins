@@ -10,6 +10,8 @@ export class Environment {
   constructor () {
     this.config = {}
     this.entities = {}
+    this.properties = {} // Store discovered properties
+    this.relationships = {} // Store discovered relationships
   }
 
   async loadFromFile (filePath = '.env') {
@@ -55,6 +57,47 @@ export class Environment {
       kaartMenuEntityId: process.env.KAART_MENU_ENTITY_ID,
       asukohtMenuEntityId: process.env.ASUKOHT_MENU_ENTITY_ID
     }
+
+    // Load discovered properties from environment
+    this.loadDiscoveredProperties()
+    this.loadDiscoveredRelationships()
+  }
+
+  loadDiscoveredRelationships () {
+    this.relationships = {}
+
+    // Parse discovered relationships from environment variables
+    const relationshipKeys = [
+      'asukoht_add_from_kaart',
+      'kaart_add_from_menu'
+    ]
+
+    for (const key of relationshipKeys) {
+      const envKey = `DISCOVERED_RELATIONSHIP_${key.toUpperCase()}`
+      const relationshipId = process.env[envKey]
+      if (relationshipId) {
+        this.relationships[key] = { _id: relationshipId }
+      }
+    }
+  }
+
+  loadDiscoveredProperties () {
+    this.properties = {}
+
+    // Parse discovered properties from environment variables
+    const propertyKeys = [
+      'name_kaart', 'kirjeldus_kaart', 'url_kaart',
+      'name_asukoht', 'kirjeldus_asukoht', 'long_asukoht',
+      'lat_asukoht', 'photo_asukoht', 'link_asukoht'
+    ]
+
+    for (const key of propertyKeys) {
+      const envKey = `DISCOVERED_PROPERTY_${key.toUpperCase()}`
+      const propertyId = process.env[envKey]
+      if (propertyId) {
+        this.properties[key] = { _id: propertyId }
+      }
+    }
   }
 
   validateRequired (requiredKeys = ['host', 'account', 'token']) {
@@ -96,7 +139,39 @@ ASUKOHT_ENTITY_DEFINITION_ID=${this.entities.asukohtEntityDefinitionId || ''}
 # Menu Entities
 KAART_MENU_ENTITY_ID=${this.entities.kaartMenuEntityId || ''}
 ASUKOHT_MENU_ENTITY_ID=${this.entities.asukohtMenuEntityId || ''}
+
+# Discovered Properties (for duplicate prevention)
+${this.generateDiscoveredPropertiesSection()}
+
+# Discovered Relationships (for duplicate prevention)
+${this.generateDiscoveredRelationshipsSection()}
 `
+  }
+
+  generateDiscoveredPropertiesSection () {
+    if (!this.properties || Object.keys(this.properties).length === 0) {
+      return ''
+    }
+
+    let section = ''
+    for (const [key, property] of Object.entries(this.properties)) {
+      const envKey = `DISCOVERED_PROPERTY_${key.toUpperCase()}`
+      section += `${envKey}=${property._id}\n`
+    }
+    return section.trim()
+  }
+
+  generateDiscoveredRelationshipsSection () {
+    if (!this.relationships || Object.keys(this.relationships).length === 0) {
+      return ''
+    }
+
+    let section = ''
+    for (const [key, relationship] of Object.entries(this.relationships)) {
+      const envKey = `DISCOVERED_RELATIONSHIP_${key.toUpperCase()}`
+      section += `${envKey}=${relationship._id}\n`
+    }
+    return section.trim()
   }
 
   logConfiguration () {

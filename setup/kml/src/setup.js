@@ -87,6 +87,17 @@ export class SetupService {
   async createProperties (existingProperties = {}) {
     Logger.progress('Creating missing properties...')
 
+    // Debug: log discovered properties
+    if (Object.keys(existingProperties).length > 0) {
+      Logger.info(`Found ${Object.keys(existingProperties).length} existing properties`)
+      for (const [key, prop] of Object.entries(existingProperties)) {
+        Logger.info(`  ${key}: ${prop._id}`)
+      }
+    }
+    else {
+      Logger.warning('No existing properties found - will create all')
+    }
+
     const properties = [
       // Kaart properties
       {
@@ -296,21 +307,46 @@ export class SetupService {
     }
   }
 
-  async setupRelationships () {
+  async setupRelationships (existingRelationships = {}) {
     Logger.progress('Setting up relationships...')
 
-    // Add menu relationship to Kaart entity
-    if (this.env.entities.kaartEntityDefinitionId && this.env.entities.kaartMenuEntityId) {
-      try {
-        const relationshipData = [
-          { type: 'add_from', reference: this.env.entities.kaartMenuEntityId }
-        ]
-
-        await this.api.updateEntity(this.env.entities.kaartEntityDefinitionId, relationshipData)
-        Logger.success('Kaart -> Menu relationship created')
+    // Add Kaart relationship to Asukoht entity (allows creating Asukoht under Kaart)
+    if (this.env.entities.asukohtEntityDefinitionId && this.env.entities.kaartEntityDefinitionId) {
+      if (existingRelationships.asukoht_add_from_kaart) {
+        Logger.skip('Asukoht -> Kaart relationship (already exists)')
       }
-      catch (error) {
-        Logger.warning(`Failed to create Kaart -> Menu relationship: ${error.message}`)
+      else {
+        try {
+          const relationshipData = [
+            { type: 'add_from', reference: this.env.entities.kaartEntityDefinitionId }
+          ]
+
+          await this.api.updateEntity(this.env.entities.asukohtEntityDefinitionId, relationshipData)
+          Logger.success('Asukoht -> Kaart relationship created')
+        }
+        catch (error) {
+          Logger.warning(`Failed to create Asukoht -> Kaart relationship: ${error.message}`)
+        }
+      }
+    }
+
+    // Add menu relationship to Kaart entity (allows creating Kaart from menu)
+    if (this.env.entities.kaartEntityDefinitionId && this.env.entities.kaartMenuEntityId) {
+      if (existingRelationships.kaart_add_from_menu) {
+        Logger.skip('Kaart -> Menu relationship (already exists)')
+      }
+      else {
+        try {
+          const relationshipData = [
+            { type: 'add_from', reference: this.env.entities.kaartMenuEntityId }
+          ]
+
+          await this.api.updateEntity(this.env.entities.kaartEntityDefinitionId, relationshipData)
+          Logger.success('Kaart -> Menu relationship created')
+        }
+        catch (error) {
+          Logger.warning(`Failed to create Kaart -> Menu relationship: ${error.message}`)
+        }
       }
     }
   }

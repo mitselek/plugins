@@ -211,6 +211,54 @@ export class DiscoveryService {
     return properties
   }
 
+  async discoverRelationships (kaartEntityId, asukohtEntityId, kaartMenuEntityId) {
+    Logger.section('Discovering existing relationships...')
+
+    const relationships = {}
+
+    // Check if Asukoht entity definition has add_from relationship to Kaart
+    if (asukohtEntityId && kaartEntityId) {
+      const asukohtEntity = await this.api.findEntity(
+        `_id=${asukohtEntityId}&add_from.reference=${kaartEntityId}&props=_id,add_from`
+      )
+      if (asukohtEntity.length > 0 && asukohtEntity[0].add_from) {
+        const addFromRel = asukohtEntity[0].add_from.find((rel) => rel.reference === kaartEntityId)
+        if (addFromRel) {
+          relationships.asukoht_add_from_kaart = addFromRel
+          Logger.success('Asukoht -> Kaart add_from relationship exists')
+        }
+        else {
+          Logger.info('Asukoht -> Kaart add_from relationship missing')
+        }
+      }
+      else {
+        Logger.info('Asukoht -> Kaart add_from relationship missing')
+      }
+    }
+
+    // Check if Kaart entity definition has add_from relationship to Kaart menu
+    if (kaartEntityId && kaartMenuEntityId) {
+      const kaartEntity = await this.api.findEntity(
+        `_id=${kaartEntityId}&add_from.reference=${kaartMenuEntityId}&props=_id,add_from`
+      )
+      if (kaartEntity.length > 0 && kaartEntity[0].add_from) {
+        const addFromRel = kaartEntity[0].add_from.find((rel) => rel.reference === kaartMenuEntityId)
+        if (addFromRel) {
+          relationships.kaart_add_from_menu = addFromRel
+          Logger.success('Kaart -> Menu add_from relationship exists')
+        }
+        else {
+          Logger.info('Kaart -> Menu add_from relationship missing')
+        }
+      }
+      else {
+        Logger.info('Kaart -> Menu add_from relationship missing')
+      }
+    }
+
+    return relationships
+  }
+
   async discoverAll () {
     const result = {}
 
@@ -231,6 +279,13 @@ export class DiscoveryService {
       coreEntities.propertyEntityDefinitionId
     )
     result.properties = properties
+
+    const relationships = await this.discoverRelationships(
+      kmlEntities.kaartEntityDefinitionId,
+      kmlEntities.asukohtEntityDefinitionId,
+      menuEntities.kaartMenuEntityId
+    )
+    result.relationships = relationships
 
     return result
   }

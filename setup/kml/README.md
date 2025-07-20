@@ -13,32 +13,73 @@ This folder contains the automated setup scripts and documentation for creating 
 2. **Edit the `.env` file** with your Entu credentials:
 
    ```bash
-   ENTU_HOST=entu.app
+   # Minimal configuration (host defaults to entu.app)
    ENTU_ACCOUNT=your_account
    ENTU_TOKEN=your_jwt_token
+
+   # Optional: Override host for custom instances
+   # ENTU_HOST=custom.entu.instance.com
    ```
 
 3. **Run the complete setup:**
 
    ```bash
-   npm run full-setup
+   npm start
    ```
+
+## Configuration
+
+### Environment Variables
+
+The `.env` file supports the following configuration:
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ENTU_ACCOUNT` | ✅ Yes | - | Your Entu account name |
+| `ENTU_TOKEN` | ✅ Yes | - | Your JWT authentication token |
+| `ENTU_HOST` | ❌ Optional | `entu.app` | Entu server hostname (for custom instances) |
+
+### Minimal Configuration
+
+For most users, only account and token are needed:
+
+```bash
+ENTU_ACCOUNT=your_account
+ENTU_TOKEN=your_jwt_token
+```
+
+### Custom Host Configuration
+
+For enterprise or self-hosted Entu instances:
+
+```bash
+ENTU_HOST=custom.entu.instance.com
+ENTU_ACCOUNT=your_account
+ENTU_TOKEN=your_jwt_token
+```
+
+### Auto-Discovery
+
+All entity IDs and relationships are **automatically discovered** and saved to `.env`. You don't need to manually configure:
+
+- Database entity IDs
+- Entity definition IDs
+- Property definition IDs
+- Menu entity IDs
 
 ## Available Scripts
 
-- `npm run discover` - Discover existing Entu environment and save to .env
-- `npm run setup` - Set up map application structure
-- `npm run full-setup` - Run discovery + setup in sequence
+- `npm run discover` - Discover and inspect existing Entu environment (read-only)
+- `npm start` - **Main workflow**: Complete setup with fresh discovery + entity creation
 
-## Files
+> 💡 **Recommended workflow**: Use `npm start` for the complete setup process. The `discover` script is available for debugging and inspection without making changes.## Files
 
 ### Scripts
 
-- `discover-entu-env.js` - Environment discovery script
-- `setup-map-app-new.js` - Enhanced setup script with duplicate prevention
-- `setup-map-app.js` - Original setup script (legacy)
+- `bin/discover.js` - Environment discovery CLI (read-only database scanning)
+- `bin/setup.js` - Setup CLI (creates missing entities, properties, and relationships)
 
-### Configuration
+### Configuration Files
 
 - `.env.template` - Environment template file
 - `.env` - Your environment configuration (create from template)
@@ -46,9 +87,10 @@ This folder contains the automated setup scripts and documentation for creating 
 
 ### HTTP Files (for manual setup)
 
-- `entity-types-creation.http` - Manual HTTP requests for entity type creation
-- `map-app-creation.http` - Manual HTTP requests for map app setup
-- `map-app-init.http` - Manual HTTP requests for initialization
+- `archive/entity-types-creation.http` - Manual HTTP requests for entity type creation
+- `archive/map-app-creation.http` - Manual HTTP requests for map app setup
+- `archive/map-app-init.http` - Manual HTTP requests for initialization
+- `archive/setup-map-app.js` - Legacy setup script (archived)
 
 ## What Gets Created
 
