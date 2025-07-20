@@ -1,6 +1,9 @@
 # Environment files
 .env
 
+# Discovery cache (temporary, regenerated on each discovery run)
+discovery.json
+
 # Archive folder containing deprecated scripts
 archive/
 

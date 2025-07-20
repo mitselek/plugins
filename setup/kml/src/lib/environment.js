@@ -1,6 +1,7 @@
 /**
  * Environment Configuration Handler
  * Clean separation of config loading and validation
+ * Discovery data stored in separate JSON file
  */
 
 import fs from 'fs/promises'
@@ -12,6 +13,7 @@ export class Environment {
     this.entities = {}
     this.properties = {} // Store discovered properties
     this.relationships = {} // Store discovered relationships
+    this.discoveryFilePath = 'discovery.json'
   }
 
   async loadFromFile (filePath = '.env') {
@@ -40,7 +42,84 @@ export class Environment {
     }
   }
 
-  loadConfig () {
+  async loadDiscoveryData () {
+    try {
+      const content = await fs.readFile(this.discoveryFilePath, 'utf8')
+      const data = JSON.parse(content)
+
+      if (data.discovery) {
+        this.properties = this.flattenProperties(data.discovery.properties || {})
+
+        // Convert simplified relationships (ID strings) back to objects with _id property
+        this.relationships = {}
+        const relationshipsData = data.discovery.relationships || {}
+        for (const [key, value] of Object.entries(relationshipsData)) {
+          this.relationships[key] = typeof value === 'string' ? { _id: value } : value
+        }
+
+        Logger.success('Discovery data loaded from JSON file')
+      }
+    }
+    catch {
+      // File doesn't exist or is invalid - start with empty discovery data
+      this.properties = {}
+      this.relationships = {}
+      Logger.info('No discovery data found - starting fresh')
+    }
+  }
+
+  flattenProperties (propertiesData) {
+    const flattened = {}
+    for (const [entityType, properties] of Object.entries(propertiesData)) {
+      for (const [propName, propId] of Object.entries(properties)) {
+        const key = `${propName}_${entityType}`
+        flattened[key] = { _id: propId }
+      }
+    }
+    return flattened
+  }
+
+  unflattenProperties () {
+    const unflattened = {}
+    for (const [key, property] of Object.entries(this.properties)) {
+      const parts = key.split('_')
+      const propName = parts.slice(0, -1).join('_')
+      const entityType = parts[parts.length - 1]
+
+      if (!unflattened[entityType]) {
+        unflattened[entityType] = {}
+      }
+      unflattened[entityType][propName] = property._id
+    }
+    return unflattened
+  }
+
+  async saveDiscoveryData () {
+    // Simplify relationships to just store IDs like properties
+    const simplifiedRelationships = {}
+    for (const [key, relationship] of Object.entries(this.relationships)) {
+      simplifiedRelationships[key] = relationship._id
+    }
+
+    const discoveryData = {
+      discovery: {
+        timestamp: new Date().toISOString(),
+        version: '1.0.0',
+        properties: this.unflattenProperties(),
+        relationships: simplifiedRelationships
+      }
+    }
+
+    try {
+      await fs.writeFile(this.discoveryFilePath, JSON.stringify(discoveryData, null, 2))
+      Logger.success('Discovery data saved to JSON file')
+    }
+    catch (error) {
+      Logger.warning(`Failed to save discovery data: ${error.message}`)
+    }
+  }
+
+  async loadConfig () {
     this.config = {
       host: process.env.ENTU_HOST || 'entu.app',
       account: process.env.ENTU_ACCOUNT,
@@ -58,46 +137,33 @@ export class Environment {
       asukohtMenuEntityId: process.env.ASUKOHT_MENU_ENTITY_ID
     }
 
-    // Load discovered properties from environment
-    this.loadDiscoveredProperties()
-    this.loadDiscoveredRelationships()
+    // Load discovered data from JSON file
+    await this.loadDiscoveryData()
   }
 
-  loadDiscoveredRelationships () {
-    this.relationships = {}
-
-    // Parse discovered relationships from environment variables
-    const relationshipKeys = [
-      'asukoht_add_from_kaart',
-      'kaart_add_from_menu'
-    ]
-
-    for (const key of relationshipKeys) {
-      const envKey = `DISCOVERED_RELATIONSHIP_${key.toUpperCase()}`
-      const relationshipId = process.env[envKey]
-      if (relationshipId) {
-        this.relationships[key] = { _id: relationshipId }
-      }
+  loadConfigOnly () {
+    // Load only basic config - all entity IDs will be discovered fresh
+    this.config = {
+      host: process.env.ENTU_HOST || 'entu.app',
+      account: process.env.ENTU_ACCOUNT,
+      token: process.env.ENTU_TOKEN
     }
-  }
 
-  loadDiscoveredProperties () {
+    // Initialize all entity IDs as null - discovery will populate them
+    this.entities = {
+      databaseEntityId: null,
+      entityEntityDefinitionId: null,
+      propertyEntityDefinitionId: null,
+      menuEntityDefinitionId: null,
+      kaartEntityDefinitionId: null,
+      asukohtEntityDefinitionId: null,
+      kaartMenuEntityId: null,
+      asukohtMenuEntityId: null
+    }
+
+    // Initialize empty discovery data - will be populated by discovery service
     this.properties = {}
-
-    // Parse discovered properties from environment variables
-    const propertyKeys = [
-      'name_kaart', 'kirjeldus_kaart', 'url_kaart',
-      'name_asukoht', 'kirjeldus_asukoht', 'long_asukoht',
-      'lat_asukoht', 'photo_asukoht', 'link_asukoht'
-    ]
-
-    for (const key of propertyKeys) {
-      const envKey = `DISCOVERED_PROPERTY_${key.toUpperCase()}`
-      const propertyId = process.env[envKey]
-      if (propertyId) {
-        this.properties[key] = { _id: propertyId }
-      }
-    }
+    this.relationships = {}
   }
 
   validateRequired (requiredKeys = ['host', 'account', 'token']) {
@@ -118,6 +184,9 @@ export class Environment {
     catch (error) {
       Logger.warning(`Failed to save .env file: ${error.message}`)
     }
+
+    // Also save discovery data to JSON
+    await this.saveDiscoveryData()
   }
 
   generateEnvContent () {
@@ -125,53 +194,7 @@ export class Environment {
 ENTU_HOST=${this.config.host}
 ENTU_ACCOUNT=${this.config.account}
 ENTU_TOKEN=${this.config.token}
-
-# Core Entity Definitions
-DATABASE_ENTITY_ID=${this.entities.databaseEntityId || ''}
-ENTITY_DEFINITION_ID=${this.entities.entityEntityDefinitionId || ''}
-PROPERTY_DEFINITION_ID=${this.entities.propertyEntityDefinitionId || ''}
-MENU_DEFINITION_ID=${this.entities.menuEntityDefinitionId || ''}
-
-# KML App Entities
-KAART_ENTITY_DEFINITION_ID=${this.entities.kaartEntityDefinitionId || ''}
-ASUKOHT_ENTITY_DEFINITION_ID=${this.entities.asukohtEntityDefinitionId || ''}
-
-# Menu Entities
-KAART_MENU_ENTITY_ID=${this.entities.kaartMenuEntityId || ''}
-ASUKOHT_MENU_ENTITY_ID=${this.entities.asukohtMenuEntityId || ''}
-
-# Discovered Properties (for duplicate prevention)
-${this.generateDiscoveredPropertiesSection()}
-
-# Discovered Relationships (for duplicate prevention)
-${this.generateDiscoveredRelationshipsSection()}
 `
-  }
-
-  generateDiscoveredPropertiesSection () {
-    if (!this.properties || Object.keys(this.properties).length === 0) {
-      return ''
-    }
-
-    let section = ''
-    for (const [key, property] of Object.entries(this.properties)) {
-      const envKey = `DISCOVERED_PROPERTY_${key.toUpperCase()}`
-      section += `${envKey}=${property._id}\n`
-    }
-    return section.trim()
-  }
-
-  generateDiscoveredRelationshipsSection () {
-    if (!this.relationships || Object.keys(this.relationships).length === 0) {
-      return ''
-    }
-
-    let section = ''
-    for (const [key, relationship] of Object.entries(this.relationships)) {
-      const envKey = `DISCOVERED_RELATIONSHIP_${key.toUpperCase()}`
-      section += `${envKey}=${relationship._id}\n`
-    }
-    return section.trim()
   }
 
   logConfiguration () {

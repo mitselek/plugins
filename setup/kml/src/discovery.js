@@ -224,7 +224,7 @@ export class DiscoveryService {
       if (asukohtEntity.length > 0 && asukohtEntity[0].add_from) {
         const addFromRel = asukohtEntity[0].add_from.find((rel) => rel.reference === kaartEntityId)
         if (addFromRel) {
-          relationships.asukoht_add_from_kaart = addFromRel
+          relationships.asukoht_add_from_kaart = { _id: addFromRel._id }
           Logger.success('Asukoht -> Kaart add_from relationship exists')
         }
         else {
@@ -244,7 +244,7 @@ export class DiscoveryService {
       if (kaartEntity.length > 0 && kaartEntity[0].add_from) {
         const addFromRel = kaartEntity[0].add_from.find((rel) => rel.reference === kaartMenuEntityId)
         if (addFromRel) {
-          relationships.kaart_add_from_menu = addFromRel
+          relationships.kaart_add_from_menu = { _id: addFromRel._id }
           Logger.success('Kaart -> Menu add_from relationship exists')
         }
         else {

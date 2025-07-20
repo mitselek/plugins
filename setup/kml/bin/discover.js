@@ -17,9 +17,9 @@ async function main () {
 
     const env = new Environment()
 
-    // Try to load existing config
+    // Load basic config (host, account, token) but NOT discovery data
     await env.loadFromFile()
-    env.loadConfig()
+    env.loadConfigOnly() // New method that doesn't load discovery data
 
     // Validate basic requirements
     env.validateRequired(['host', 'account', 'token'])

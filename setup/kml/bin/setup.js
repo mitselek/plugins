@@ -37,7 +37,7 @@ async function main () {
       process.exit(1)
     }
 
-    env.loadConfig()
+    await env.loadConfig()
     env.validateRequired(['host', 'account', 'token'])
     env.logConfiguration()
 
