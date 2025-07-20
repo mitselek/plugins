@@ -80,9 +80,19 @@ The `discovery.json` file contains:
   "discovery": {
     "timestamp": "2025-07-20T...",
     "version": "1.0.0",
+    "entities": {
+      "databaseEntityId": "id",
+      "entityEntityDefinitionId": "id",
+      "propertyEntityDefinitionId": "id",
+      "menuEntityDefinitionId": "id",
+      "kaartEntityDefinitionId": "id",
+      "asukohtEntityDefinitionId": "id",
+      "kaartMenuEntityId": "id",
+      "asukohtMenuEntityId": "id"
+    },
     "properties": {
       "kaart": { "name": "id", "kirjeldus": "id", "url": "id" },
-      "asukoht": { "name": "id", "kirjeldus": "id", "long": "id", ... }
+      "asukoht": { "name": "id", "kirjeldus": "id", "long": "id", "lat": "id", "photo": "id", "link": "id" }
     },
     "relationships": {
       "asukoht_add_from_kaart": "relationship_id",
@@ -97,7 +107,6 @@ This structure enables fast duplicate checking during setup while maintaining a 
 ## Available Scripts
 
 - `npm run discover` - Discover and cache existing Entu environment (read-only, fresh database scan)
-- `npm run setup` - Create missing entities based on discovery results (interactive)
 - `npm start` - **Complete workflow**: Fresh discovery + interactive setup
 
 > 💡 **Recommended workflow**: Use `npm start` for the complete setup process. Individual scripts are available for debugging and step-by-step execution.## Files
@@ -114,12 +123,11 @@ This structure enables fast duplicate checking during setup while maintaining a 
 - `discovery.json` - **Temporary cache** of discovered entities and relationships (auto-generated, git-ignored)
 - `package.json` - NPM configuration with setup scripts
 
-### HTTP Files (for manual setup)
+### HTTP Files (for manual setup and reference)
 
 - `archive/entity-types-creation.http` - Manual HTTP requests for entity type creation
 - `archive/map-app-creation.http` - Manual HTTP requests for map app setup
 - `archive/map-app-init.http` - Manual HTTP requests for initialization
-- `archive/setup-map-app.js` - Legacy setup script (archived)
 
 ## What Gets Created
 
