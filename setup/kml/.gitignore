@@ -1,0 +1,11 @@
+# Environment files
+.env
+
+# Archive folder containing deprecated scripts
+archive/
+
+# Node modules (if any)
+node_modules/
+
+# Logs
+*.log

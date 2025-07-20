@@ -2,6 +2,21 @@
 
 Collection of plugins for importing data into Entu.
 
+## Quick Setup
+
+Before using the plugins, you may need to set up the required entity structure in your Entu account:
+
+**📁 KML Setup Directory**: `./setup/kml/`
+
+```bash
+cd setup/kml
+cp .env.template .env
+# Edit .env with your credentials
+npm run setup
+```
+
+See [setup/kml/README.md](./setup/kml/README.md) for detailed setup instructions.
+
 ## Available Plugins
 
 ### CSV Import Plugin (`/csv`)
