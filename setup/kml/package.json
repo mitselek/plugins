@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "description": "Interactive setup scripts for Entu map application structure",
   "type": "module",
-  "main": "discover-entu-env.js",
+  "main": "bin/discover.js",
   "bin": {
-    "discover-entu-env": "./discover-entu-env.js",
-    "setup-map-app": "./setup.js"
+    "discover-entu-env": "./bin/discover.js",
+    "setup-map-app": "./bin/setup.js"
   },
   "scripts": {
-    "setup": "node discover-entu-env.js && node setup.js",
+    "discover": "node bin/discover.js",
+    "setup": "node bin/setup.js",
+    "start": "npm run discover && npm run setup",
     "test": "echo \"No tests specified\" && exit 0"
   },
   "keywords": ["entu", "map", "setup", "cli", "discovery"],
