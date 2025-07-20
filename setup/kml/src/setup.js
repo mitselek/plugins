@@ -35,7 +35,7 @@ export class SetupService {
 
   async createKaartEntity () {
     if (this.env.entities.kaartEntityDefinitionId) {
-      Logger.skip('Kaart entity creation (already exists)')
+      // Entity already exists - no message needed, it's shown in setup plan
       return this.env.entities.kaartEntityDefinitionId
     }
 
@@ -60,7 +60,7 @@ export class SetupService {
 
   async createAsukohtEntity () {
     if (this.env.entities.asukohtEntityDefinitionId) {
-      Logger.skip('Asukoht entity creation (already exists)')
+      // Entity already exists - no message needed, it's shown in setup plan
       return this.env.entities.asukohtEntityDefinitionId
     }
 
@@ -85,8 +85,6 @@ export class SetupService {
   }
 
   async createProperties (existingProperties = {}) {
-    Logger.progress('Creating missing properties...')
-
     // Debug: log discovered properties
     if (Object.keys(existingProperties).length > 0) {
       Logger.info(`Found ${Object.keys(existingProperties).length} existing properties`)
@@ -201,6 +199,19 @@ export class SetupService {
       }
     ]
 
+    // Check if there are any missing properties
+    const missingProperties = properties.filter((prop) => {
+      const propKey = `${prop.name}_${prop.entityType}`
+      return !existingProperties[propKey] && prop.entity
+    })
+
+    if (missingProperties.length === 0) {
+      Logger.success('All properties already exist')
+      return
+    }
+
+    Logger.progress(`Creating ${missingProperties.length} missing properties...`)
+
     for (const prop of properties) {
       const propKey = `${prop.name}_${prop.entityType}`
       if (existingProperties[propKey]) {
@@ -283,9 +294,7 @@ export class SetupService {
         { type: 'name', string: menu.name_en, language: 'en' },
         { type: 'group', string: menu.group_et, language: 'et' },
         { type: 'group', string: menu.group_en, language: 'en' },
-        { type: 'entity', reference: menu.entity },
-        { type: 'sort', integer: menu.sort },
-        { type: '_parent', reference: this.env.entities.databaseEntityId }
+        { type: 'query', string: `_type.string=${menu.type}&sort=name.string` }
       ]
 
       try {
@@ -349,9 +358,5 @@ export class SetupService {
         }
       }
     }
-  }
-
-  getCreatedSummary () {
-    return this.created
   }
 }

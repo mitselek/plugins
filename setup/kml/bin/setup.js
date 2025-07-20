@@ -37,7 +37,8 @@ async function main () {
       process.exit(1)
     }
 
-    await env.loadConfig()
+    env.loadBasicConfig()
+    await env.loadDiscoveryData()
     env.validateRequired(['host', 'account', 'token'])
     env.logConfiguration()
 
@@ -45,36 +46,61 @@ async function main () {
     const apiClient = new EntuApiClient(env.config.host, env.config.account, env.config.token)
     const setup = new SetupService(apiClient, env)
 
-    // Create entities
-    await setup.createKaartEntity()
-    await setup.createAsukohtEntity()
-
-    // Show setup plan
+    // Show setup plan BEFORE creating anything
     Logger.section('Setup Plan')
     const kaartExists = !!env.entities.kaartEntityDefinitionId
     const asukohtExists = !!env.entities.asukohtEntityDefinitionId
     const menusExist = !!(env.entities.kaartMenuEntityId && env.entities.asukohtMenuEntityId)
 
-    Logger.log(`   ${kaartExists ? '⏭️  Found existing' : '✅ Created'} Kaart entity`, 'blue')
-    Logger.log(`   ${asukohtExists ? '⏭️  Found existing' : '✅ Created'} Asukoht entity`, 'blue')
-    Logger.log(`   ${menusExist ? '⏭️  Skip' : '✅ Create'} menu items`, 'blue')
-    Logger.log('   ✅ Create missing properties', 'blue')
-    Logger.log('   ✅ Setup relationships', 'blue')
+    // Check if properties are missing
+    const expectedPropertyCount = 9 // 3 kaart + 6 asukoht properties
+    const existingPropertyCount = Object.keys(env.properties).length
+    const propertiesMissing = existingPropertyCount < expectedPropertyCount
 
-    const proceed = await prompt('\n❓ Proceed with remaining setup? (y/N): ')
+    // Check if relationships are missing
+    const expectedRelationships = ['asukoht_add_from_kaart', 'kaart_add_from_menu']
+    const existingRelationships = Object.keys(env.relationships)
+    const relationshipsMissing = expectedRelationships.some((rel) => !existingRelationships.includes(rel))
+
+    Logger.log(`   ${kaartExists ? '⏭️  Found existing' : '✅ Create'} Kaart entity`, 'blue')
+    Logger.log(`   ${asukohtExists ? '⏭️  Found existing' : '✅ Create'} Asukoht entity`, 'blue')
+    Logger.log(`   ${menusExist ? '⏭️  Skip' : '✅ Create'} menu items`, 'blue')
+    Logger.log(`   ${propertiesMissing ? '✅ Create missing' : '⏭️  All'} properties${propertiesMissing ? '' : ' exist'}`, 'blue')
+    Logger.log(`   ${relationshipsMissing ? '✅ Setup' : '⏭️  All'} relationships${relationshipsMissing ? '' : ' exist'}`, 'blue')
+
+    // Check if everything is already set up
+    const nothingToDo = kaartExists && asukohtExists && menusExist && !propertiesMissing && !relationshipsMissing
+
+    if (nothingToDo) {
+      Logger.header('🎉 Map app setup already complete!')
+      Logger.section('Summary')
+      Logger.log(`   Kaart entity: ${env.entities.kaartEntityDefinitionId}`, 'blue')
+      Logger.log(`   Asukoht entity: ${env.entities.asukohtEntityDefinitionId}`, 'blue')
+      Logger.log(`   Properties: ${Object.keys(env.properties).length} configured`, 'blue')
+      Logger.log(`   Relationships: ${Object.keys(env.relationships).length} configured`, 'blue')
+      Logger.info('Your map application structure is ready!')
+      Logger.info('You can now use the KML import plugin to create maps and locations.')
+      return
+    }
+
+    const proceed = await prompt('\n❓ Proceed with setup? (y/N): ')
 
     if (proceed.toLowerCase() !== 'y' && proceed.toLowerCase() !== 'yes') {
       Logger.warning('Setup cancelled')
       return
     }
 
+    // NOW create entities after user confirmation
+    await setup.createKaartEntity()
+    await setup.createAsukohtEntity()
+
     // Continue with setup
     await setup.createProperties(env.properties)
     await setup.createMenus()
     await setup.setupRelationships(env.relationships)
 
-    // Update environment file
-    await env.saveToFile()
+    // Save updated discovery data
+    await env.saveDiscoveryData()
 
     Logger.header('🎉 Map app setup completed successfully!')
     Logger.section('Summary')

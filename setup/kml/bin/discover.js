@@ -19,7 +19,8 @@ async function main () {
 
     // Load basic config (host, account, token) but NOT discovery data
     await env.loadFromFile()
-    env.loadConfigOnly() // New method that doesn't load discovery data
+    env.loadBasicConfig()
+    env.initializeEmpty() // Initialize empty entities for fresh discovery
 
     // Validate basic requirements
     env.validateRequired(['host', 'account', 'token'])
@@ -27,7 +28,7 @@ async function main () {
 
     // Initialize API client
     const apiClient = new EntuApiClient(env.config.host, env.config.account, env.config.token)
-    const discovery = new DiscoveryService(apiClient, env)
+    const discovery = new DiscoveryService(apiClient)
 
     // Discover all entities
     const discoveredEntities = await discovery.discoverAll()
@@ -38,8 +39,8 @@ async function main () {
     env.properties = properties || {}
     env.relationships = relationships || {}
 
-    // Save results
-    await env.saveToFile()
+    // Save only discovery data (don't overwrite .env file)
+    await env.saveDiscoveryData()
 
     Logger.header('🎉 Environment discovery completed successfully!')
     Logger.section('Summary')

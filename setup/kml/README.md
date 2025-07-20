@@ -79,7 +79,7 @@ The `discovery.json` file contains:
 {
   "discovery": {
     "timestamp": "2025-07-20T...",
-    "version": "1.0.0", 
+    "version": "1.0.0",
     "properties": {
       "kaart": { "name": "id", "kirjeldus": "id", "url": "id" },
       "asukoht": { "name": "id", "kirjeldus": "id", "long": "id", ... }
@@ -148,7 +148,7 @@ The setup creates the following structure in your Entu account:
 ## Features
 
 - ✅ **Fresh Discovery** - Always scans live database for current state
-- ✅ **Duplicate Prevention** - Safely run multiple times without creating duplicates  
+- ✅ **Duplicate Prevention** - Safely run multiple times without creating duplicates
 - ✅ **JSON-based Caching** - Clean separation of config vs discovery data
 - ✅ **Restoration Support** - Restore missing components if manually deleted
 - ✅ **Interactive CLI** - User-friendly prompts and colored output

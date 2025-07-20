@@ -48,6 +48,9 @@ export class Environment {
       const data = JSON.parse(content)
 
       if (data.discovery) {
+        // Load entities
+        this.entities = data.discovery.entities || {}
+
         this.properties = this.flattenProperties(data.discovery.properties || {})
 
         // Convert simplified relationships (ID strings) back to objects with _id property
@@ -105,6 +108,7 @@ export class Environment {
       discovery: {
         timestamp: new Date().toISOString(),
         version: '1.0.0',
+        entities: this.entities,
         properties: this.unflattenProperties(),
         relationships: simplifiedRelationships
       }
@@ -119,37 +123,15 @@ export class Environment {
     }
   }
 
-  async loadConfig () {
+  loadBasicConfig () {
     this.config = {
       host: process.env.ENTU_HOST || 'entu.app',
       account: process.env.ENTU_ACCOUNT,
       token: process.env.ENTU_TOKEN
     }
-
-    this.entities = {
-      databaseEntityId: process.env.DATABASE_ENTITY_ID,
-      entityEntityDefinitionId: process.env.ENTITY_DEFINITION_ID,
-      propertyEntityDefinitionId: process.env.PROPERTY_DEFINITION_ID,
-      menuEntityDefinitionId: process.env.MENU_DEFINITION_ID,
-      kaartEntityDefinitionId: process.env.KAART_ENTITY_DEFINITION_ID,
-      asukohtEntityDefinitionId: process.env.ASUKOHT_ENTITY_DEFINITION_ID,
-      kaartMenuEntityId: process.env.KAART_MENU_ENTITY_ID,
-      asukohtMenuEntityId: process.env.ASUKOHT_MENU_ENTITY_ID
-    }
-
-    // Load discovered data from JSON file
-    await this.loadDiscoveryData()
   }
 
-  loadConfigOnly () {
-    // Load only basic config - all entity IDs will be discovered fresh
-    this.config = {
-      host: process.env.ENTU_HOST || 'entu.app',
-      account: process.env.ENTU_ACCOUNT,
-      token: process.env.ENTU_TOKEN
-    }
-
-    // Initialize all entity IDs as null - discovery will populate them
+  initializeEmpty () {
     this.entities = {
       databaseEntityId: null,
       entityEntityDefinitionId: null,
@@ -161,7 +143,6 @@ export class Environment {
       asukohtMenuEntityId: null
     }
 
-    // Initialize empty discovery data - will be populated by discovery service
     this.properties = {}
     this.relationships = {}
   }
@@ -172,29 +153,6 @@ export class Environment {
     if (missing.length > 0) {
       throw new Error(`Missing required configuration: ${missing.join(', ')}`)
     }
-  }
-
-  async saveToFile (filePath = '.env') {
-    const content = this.generateEnvContent()
-
-    try {
-      await fs.writeFile(filePath, content)
-      Logger.success('Environment configuration saved')
-    }
-    catch (error) {
-      Logger.warning(`Failed to save .env file: ${error.message}`)
-    }
-
-    // Also save discovery data to JSON
-    await this.saveDiscoveryData()
-  }
-
-  generateEnvContent () {
-    return `# Entu Map App Environment Configuration
-ENTU_HOST=${this.config.host}
-ENTU_ACCOUNT=${this.config.account}
-ENTU_TOKEN=${this.config.token}
-`
   }
 
   logConfiguration () {
