@@ -630,14 +630,28 @@ async function sendEntityToEntu (baseProperties) {
         </div>
 
         <div class="mb-2 flex items-center justify-between">
-          <p class="text-sm text-gray-600">
-            {{ importing
-              ? (paused
-                ? t('importPaused', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
-                : t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
-              )
-              : t('foundLocations', locations.length)
-            }}
+          <!-- Show found locations count when not importing -->
+          <p
+            v-if="!importing"
+            class="text-sm text-gray-600"
+          >
+            {{ t('foundLocations', locations.length) }}
+          </p>
+
+          <!-- Show import progress when importing and not paused -->
+          <p
+            v-else-if="importing && !paused"
+            class="text-sm text-gray-600"
+          >
+            {{ t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage }) }}
+          </p>
+
+          <!-- Show paused status when importing and paused -->
+          <p
+            v-else-if="importing && paused"
+            class="text-sm text-gray-600"
+          >
+            {{ t('importPaused', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage }) }}
           </p>
           <div class="flex items-center gap-2">
             <n-button
