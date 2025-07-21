@@ -294,9 +294,11 @@ async function parseKML () {
       const name = placemark.querySelector('name')?.textContent?.trim() || ''
       const description = placemark.querySelector('description')?.textContent?.trim() || ''
 
+      const markdownDescription = convertToMarkdown(description)
       const location = {
         name,
-        description: convertToMarkdown(description),
+        description: markdownDescription,
+        htmlDescription: markdownDescription ? convertMarkdownToHtml(markdownDescription) : '',
         coordinates: [longitude, latitude],
         selected: true,
         imported: false,
@@ -785,13 +787,14 @@ async function sendEntityToEntu (baseProperties) {
                 :class="location.imported ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'"
               >
                 <div>
+                  <!-- v-html safe: content sanitized through HTML→Markdown→HTML pipeline -->
+                  <!-- eslint-disable vue/no-v-html -->
                   <div
                     class="prose prose-sm mt-1 max-w-none overflow-y-auto text-gray-600 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>p]:my-2 [&_a]:break-words [&_a]:text-blue-600 [&_a]:underline hover:[&_a]:text-blue-800 [&_img]:h-auto [&_img]:max-w-full"
                     :style="{ maxHeight: `${CONTENT_LIMITS.MAX_DESCRIPTION_HEIGHT}px` }"
                     @click="handleDescriptionClick"
-                    v-html="convertMarkdownToHtml(location.description)"
+                    v-html="location.htmlDescription"
                   />
-                  <!-- v-html safe: content sanitized through HTML→Markdown→HTML pipeline -->
                 </div>
               </div>
             </div>
