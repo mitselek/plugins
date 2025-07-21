@@ -65,14 +65,23 @@ const selectedCount = computed(
   () => locations.value.filter((location) => location.selected).length
 )
 
-const masterCheckboxState = computed(() => {
+const selectableLocationsInfo = computed(() => {
   const selectableLocations = locations.value.filter((location) => !location.imported)
   const selectedSelectableCount = selectableLocations.filter((location) => location.selected).length
 
-  if (selectedSelectableCount === 0) {
+  return {
+    total: selectableLocations.length,
+    selected: selectedSelectableCount
+  }
+})
+
+const masterCheckboxState = computed(() => {
+  const { total, selected } = selectableLocationsInfo.value
+
+  if (selected === 0) {
     return { checked: false, indeterminate: false }
   }
-  else if (selectedSelectableCount === selectableLocations.length) {
+  else if (selected === total) {
     return { checked: true, indeterminate: false }
   }
   else {
