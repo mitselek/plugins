@@ -89,12 +89,6 @@ const masterCheckboxState = computed(() => {
   }
 })
 
-function getDescriptionClasses (location) {
-  return location.imported
-    ? 'max-h-0 opacity-0'
-    : 'max-h-96 opacity-100'
-}
-
 function handleDescriptionClick (event) {
   if (event.target.tagName === 'A' && event.target.href) {
     event.stopPropagation()
@@ -788,7 +782,7 @@ async function sendEntityToEntu (baseProperties) {
               <div
                 v-if="location.description"
                 class="overflow-hidden transition-all duration-500 ease-in-out"
-                :class="getDescriptionClasses(location)"
+                :class="location.imported ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'"
               >
                 <div>
                   <div
