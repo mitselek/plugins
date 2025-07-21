@@ -89,14 +89,6 @@ const masterCheckboxState = computed(() => {
   }
 })
 
-function handleDescriptionClick (event) {
-  if (event.target.tagName === 'A' && event.target.href) {
-    event.stopPropagation()
-    window.open(event.target.href, '_blank', 'noopener,noreferrer')
-    event.preventDefault()
-  }
-}
-
 onMounted(async () => {
   if (!query.account) {
     error.value = t('errorNoAccount')
@@ -750,10 +742,7 @@ async function sendEntityToEntu (baseProperties) {
             :class="{
               'bg-green-50': location.imported,
               'border-green-100': location.imported,
-              'cursor-default': location.imported || importing,
-              'cursor-pointer hover:bg-gray-50': !location.imported && !importing,
             }"
-            @click="!location.imported && !importing && (location.selected = !location.selected)"
           >
             <!-- Show check box for non-imported locations -->
             <n-checkbox
@@ -786,7 +775,11 @@ async function sendEntityToEntu (baseProperties) {
                 >
                   {{ location.name || t('unnamedLocation') }}
                 </a>
-                <span v-else>
+                <span
+                  v-else
+                  class="cursor-pointer hover:text-blue-600"
+                  @click="!importing && (location.selected = !location.selected)"
+                >
                   {{ location.name || t('unnamedLocation') }}
                 </span>
                 <span class="ml-1 text-sm text-gray-500">
@@ -806,7 +799,6 @@ async function sendEntityToEntu (baseProperties) {
                   <div
                     class="prose prose-sm mt-1 max-w-none overflow-y-auto text-gray-600 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>p]:my-2 [&_a]:break-words [&_a]:text-blue-600 [&_a]:underline hover:[&_a]:text-blue-800 [&_img]:h-auto [&_img]:max-w-full"
                     :style="{ maxHeight: `${CONTENT_LIMITS.MAX_DESCRIPTION_HEIGHT}px` }"
-                    @click="handleDescriptionClick"
                     v-html="location.htmlDescription"
                   />
                 </div>
