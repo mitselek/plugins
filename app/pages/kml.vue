@@ -107,11 +107,8 @@ onMounted(async () => {
 function convertToMarkdown (description) {
   if (!description) return ''
 
-  const htmlContent = extractHtmlContent(description)
-  if (!htmlContent) return ''
-
   const turndownService = createTurndownService()
-  let markdown = turndownService.turndown(htmlContent)
+  let markdown = turndownService.turndown(description)
 
   markdown = cleanupMarkdown(markdown)
   markdown = convertUrlsToMarkdownLinks(markdown)
@@ -146,12 +143,6 @@ function convertMarkdownToHtml (markdown) {
     console.warn('Failed to convert markdown to HTML:', error)
     return markdown
   }
-}
-
-function extractHtmlContent (description) {
-  return typeof description === 'string'
-    ? description
-    : description?.value || description?.toString() || ''
 }
 
 function createTurndownService () {
