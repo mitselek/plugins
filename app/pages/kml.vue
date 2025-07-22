@@ -9,7 +9,6 @@
 import TurndownService from 'turndown'
 import { marked } from 'marked'
 import { NUpload, NUploadDragger, NSpin, NCheckbox, NButton, NProgress } from 'naive-ui'
-import MyIcon from '../components/my/icon.vue'
 
 const { t } = useI18n()
 const runtimeConfig = useRuntimeConfig()
