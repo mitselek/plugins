@@ -6,10 +6,9 @@
   Architecture: Client-side processing with direct API calls to Entu.
 */
 
-import { ref, computed, onMounted, onUnmounted } from 'vue'
 import TurndownService from 'turndown'
-import { NUpload, NUploadDragger, NSpin, NCheckbox, NButton } from 'naive-ui'
-import MyIcon from '../components/my/icon.vue'
+import { marked } from 'marked'
+import { NUpload, NUploadDragger, NSpin, NCheckbox, NButton, NProgress } from 'naive-ui'
 
 const { t } = useI18n()
 const runtimeConfig = useRuntimeConfig()
@@ -21,19 +20,19 @@ const STEPS = {
 }
 
 const ANIMATION_DURATIONS = {
-  BUTTON_LOCK: 500, // ms - prevents double-clicking
-  TOGGLE_PAUSE_LOCK: 100, // ms - minimal lock for pause/resume
-  SCROLL_BASE: 300, // ms - base scroll animation duration
-  SCROLL_MAX: 1000, // ms - maximum scroll animation duration
-  USER_SCROLL_RESUME: 5000, // ms - time before auto-scroll resumes after user interaction
-  SCROLL_DEBOUNCE: 100 // ms - debounce threshold for user scroll detection
+  BUTTON_LOCK: 500,
+  TOGGLE_PAUSE_LOCK: 100
 }
 
 const CONTENT_LIMITS = {
-  MAX_DESCRIPTION_LENGTH: 20000 // characters - prevent extremely long descriptions
+  MAX_DESCRIPTION_LENGTH: 20000,
+  MAX_DESCRIPTION_HEIGHT: 384
 }
 
-// UI state
+const COORDINATE_VALIDATION = {
+  COORDINATE_PRECISION: 6
+}
+
 const step = ref(STEPS.UPLOAD)
 const selectedFile = ref(null)
 const locations = ref([])
@@ -41,11 +40,7 @@ const parsing = ref(false)
 const importing = ref(false)
 const paused = ref(false)
 const error = ref('')
-const buttonLock = ref(false) // Prevents double-clicking on action buttons
-const locationRefs = ref([]) // References to location elements for auto-scroll
-const scrollContainer = ref(null) // Reference to the scrollable container
-const userScrollPaused = ref(false) // Tracks if auto-scroll is paused due to user interaction
-const userScrollTimer = ref(null) // Timer for resuming auto-scroll after user interaction
+const buttonLock = ref(false)
 const importProgress = ref({
   current: 0,
   total: 0,
@@ -68,6 +63,30 @@ const selectedCount = computed(
   () => locations.value.filter((location) => location.selected).length
 )
 
+const selectableLocationsInfo = computed(() => {
+  const selectableLocations = locations.value.filter((location) => !location.imported)
+  const selectedSelectableCount = selectableLocations.filter((location) => location.selected).length
+
+  return {
+    total: selectableLocations.length,
+    selected: selectedSelectableCount
+  }
+})
+
+const masterCheckboxState = computed(() => {
+  const { total, selected } = selectableLocationsInfo.value
+
+  if (selected === 0) {
+    return { checked: false, indeterminate: false }
+  }
+  else if (selected === total) {
+    return { checked: true, indeterminate: false }
+  }
+  else {
+    return { checked: false, indeterminate: true }
+  }
+})
+
 onMounted(async () => {
   if (!query.account) {
     error.value = t('errorNoAccount')
@@ -85,139 +104,11 @@ onMounted(async () => {
   }
 })
 
-onUnmounted(() => {
-  if (userScrollTimer.value) {
-    clearTimeout(userScrollTimer.value)
-  }
-})
-
-// UTILITY FUNCTIONS
-// ======================================
-/**
- * Prevents rapid button clicks by temporarily locking the action
- */
-function protectFromDoubleClick (fn) {
-  return async (...args) => {
-    if (buttonLock.value) return
-
-    buttonLock.value = true
-
-    try {
-      await fn(...args)
-    }
-    finally {
-      setTimeout(() => {
-        buttonLock.value = false
-      }, ANIMATION_DURATIONS.BUTTON_LOCK)
-    }
-  }
-}
-
-/**
- * Scrolls to keep the currently importing location visible with enhanced easing
- */
-function scrollToLocation (index) {
-  const element = locationRefs.value[index]
-  if (!element) return
-
-  const container = element.closest('.overflow-y-auto')
-  if (!container) return
-
-  if (!scrollContainer.value) {
-    scrollContainer.value = container
-    setupScrollListener()
-  }
-
-  if (userScrollPaused.value) {
-    return
-  }
-
-  const currentScrollTop = container.scrollTop
-  const elementOffsetTop = element.offsetTop
-  const containerHeight = container.clientHeight
-
-  const targetScrollTop = elementOffsetTop - (containerHeight / 2) + (element.offsetHeight / 2)
-
-  // Never scroll backwards - only scroll forward or stay in place
-  if (targetScrollTop <= currentScrollTop) {
-    return
-  }
-
-  const distance = Math.abs(targetScrollTop - currentScrollTop)
-
-  const baseDuration = ANIMATION_DURATIONS.SCROLL_BASE
-  const maxDuration = ANIMATION_DURATIONS.SCROLL_MAX
-  const duration = Math.min(baseDuration + (distance / 2), maxDuration)
-
-  const easeInOutCubic = (t) => {
-    return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1
-  }
-
-  const startTime = performance.now()
-  const startScrollTop = currentScrollTop
-
-  const animateScroll = (currentTime) => {
-    const elapsed = currentTime - startTime
-    const progress = Math.min(elapsed / duration, 1)
-
-    const easedProgress = easeInOutCubic(progress)
-    const newScrollTop = startScrollTop + (targetScrollTop - startScrollTop) * easedProgress
-
-    container.scrollTop = newScrollTop
-
-    if (progress < 1) {
-      requestAnimationFrame(animateScroll)
-    }
-  }
-
-  requestAnimationFrame(animateScroll)
-}
-
-/**
- * Sets up scroll listener to detect user scroll and pause auto-scrolling
- */
-function setupScrollListener () {
-  if (!scrollContainer.value) return
-
-  let scrollTimeout
-  let lastScrollTime = 0
-
-  const handleScroll = () => {
-    const currentTime = Date.now()
-
-    if (scrollTimeout) {
-      clearTimeout(scrollTimeout)
-    }
-
-    if (currentTime - lastScrollTime > ANIMATION_DURATIONS.SCROLL_DEBOUNCE) {
-      userScrollPaused.value = true
-
-      if (userScrollTimer.value) {
-        clearTimeout(userScrollTimer.value)
-      }
-
-      userScrollTimer.value = setTimeout(() => {
-        userScrollPaused.value = false
-      }, ANIMATION_DURATIONS.USER_SCROLL_RESUME)
-    }
-
-    lastScrollTime = currentTime
-  }
-
-  scrollContainer.value.addEventListener('scroll', handleScroll, { passive: true })
-}
-
-/**
- * Converts HTML content from KML descriptions to markdown
- */
 function convertToMarkdown (description) {
   if (!description) return ''
 
-  const htmlContent = extractHtmlContent(description)
-  if (!htmlContent) return ''
-
   const turndownService = createTurndownService()
-  let markdown = turndownService.turndown(htmlContent)
+  let markdown = turndownService.turndown(description)
 
   markdown = cleanupMarkdown(markdown)
   markdown = convertUrlsToMarkdownLinks(markdown)
@@ -225,10 +116,33 @@ function convertToMarkdown (description) {
   return markdown
 }
 
-function extractHtmlContent (description) {
-  return typeof description === 'string'
-    ? description
-    : description?.value || description?.toString() || ''
+/**
+ * Converts markdown text to HTML for safe display
+ */
+function convertMarkdownToHtml (markdown) {
+  if (!markdown) return ''
+
+  try {
+    marked.setOptions({
+      breaks: true,
+      gfm: true,
+      sanitize: false,
+      smartypants: false
+    })
+
+    let html = marked(markdown)
+
+    html = html.replace(
+      /<a\s+href="([^"]+)"[^>]*>/g,
+      '<a href="$1" target="_blank" rel="noopener noreferrer">'
+    )
+
+    return html
+  }
+  catch (error) {
+    console.warn('Failed to convert markdown to HTML:', error)
+    return markdown
+  }
 }
 
 function createTurndownService () {
@@ -275,8 +189,6 @@ function convertUrlsToMarkdownLinks (markdown) {
   )
 }
 
-// FILE HANDLING METHODS
-// ======================================
 function kmlUpload (data) {
   const file = data.file?.file || data.file
 
@@ -286,19 +198,6 @@ function kmlUpload (data) {
     parseKML()
   }
 }
-
-const kmlUploadProtected = protectFromDoubleClick(kmlUpload)
-
-function handleFileChange (data) {
-  const file = data.fileList?.[0]?.file
-  if (file) {
-    selectedFile.value = file
-    error.value = ''
-    parseKML()
-  }
-}
-
-const handleFileChangeProtected = protectFromDoubleClick(handleFileChange)
 
 function handleDrop (event) {
   const file = event.dataTransfer.files?.[0]
@@ -312,8 +211,6 @@ function handleDrop (event) {
     error.value = t('errorInvalidFile')
   }
 }
-
-const handleDropProtected = protectFromDoubleClick(handleDrop)
 
 function readFileAsText (file) {
   return new Promise((resolve, reject) => {
@@ -369,9 +266,11 @@ async function parseKML () {
       const name = placemark.querySelector('name')?.textContent?.trim() || ''
       const description = placemark.querySelector('description')?.textContent?.trim() || ''
 
+      const markdownDescription = convertToMarkdown(description)
       const location = {
         name,
-        description: convertToMarkdown(description),
+        description: markdownDescription,
+        htmlDescription: markdownDescription ? convertMarkdownToHtml(markdownDescription) : '',
         coordinates: [longitude, latitude],
         selected: true,
         imported: false,
@@ -395,29 +294,26 @@ async function parseKML () {
   }
 }
 
-function selectAll () {
+function handleMasterCheckboxChange (checked) {
   locations.value.forEach((location) => {
-    location.selected = true
+    if (!location.imported) {
+      location.selected = checked
+    }
   })
 }
-
-const selectAllProtected = protectFromDoubleClick(selectAll)
-
-function selectNone () {
-  locations.value.forEach((location) => {
-    location.selected = false
-  })
-}
-
-const selectNoneProtected = protectFromDoubleClick(selectNone)
 
 function goBackToUpload () {
+  if (buttonLock.value) return
+
+  buttonLock.value = true
   step.value = STEPS.UPLOAD
   error.value = ''
   selectedFile.value = null
-}
 
-const goBackToUploadProtected = protectFromDoubleClick(goBackToUpload)
+  setTimeout(() => {
+    buttonLock.value = false
+  }, ANIMATION_DURATIONS.BUTTON_LOCK)
+}
 
 function togglePause () {
   if (importing.value) {
@@ -429,7 +325,7 @@ function togglePause () {
   }
 }
 
-const togglePauseProtected = function () {
+function togglePauseProtected () {
   let localLock = false
 
   if (localLock) return
@@ -447,6 +343,8 @@ const togglePauseProtected = function () {
  * Supports pause/resume functionality and stops on first error
  */
 async function importSelected () {
+  if (buttonLock.value) return
+
   if (!importing.value) {
     const selectedLocations = locations.value.filter(
       (location) => location.selected
@@ -457,6 +355,7 @@ async function importSelected () {
       return
     }
 
+    buttonLock.value = true
     importing.value = true
     error.value = ''
     paused.value = false
@@ -491,8 +390,6 @@ async function importSelected () {
       }
 
       const { location } = importProgress.value.pendingLocations[i]
-
-      scrollToLocation(i)
 
       try {
         if (!location.coordinates || location.coordinates.length < 2) {
@@ -539,10 +436,9 @@ async function importSelected () {
         )
       }
       catch (err) {
-        const errorMessage = err.message || 'Unknown error occurred'
         importResults.value.errors.push({
           name: location.name,
-          error: errorMessage
+          error: err.message
         })
 
         importResults.value.stopped = true
@@ -565,11 +461,10 @@ async function importSelected () {
     if (!paused.value) {
       importing.value = false
       importProgress.value.pendingLocations = null
+      buttonLock.value = false
     }
   }
 }
-
-const importSelectedProtected = protectFromDoubleClick(importSelected)
 
 async function createEntity (entityData) {
   const baseProperties = buildEntityProperties(entityData)
@@ -658,18 +553,17 @@ async function sendEntityToEntu (baseProperties) {
     <div v-if="step === STEPS.UPLOAD">
       <n-upload
         v-if="!parsing"
-        :custom-request="kmlUploadProtected"
+        :custom-request="kmlUpload"
         :show-file-list="false"
         accept=".kml,.xml"
         :multiple="false"
         :directory="false"
-        @change="handleFileChangeProtected"
       >
         <n-upload-dragger
           class="flex h-96 flex-col items-center justify-center gap-2 rounded-none"
           @dragover.prevent
           @dragenter.prevent
-          @drop.prevent="handleDropProtected"
+          @drop.prevent="handleDrop"
         >
           {{ t('uploadText') }}
         </n-upload-dragger>
@@ -689,7 +583,7 @@ async function sendEntityToEntu (baseProperties) {
       class="flex h-full flex-col"
     >
       <!-- Sticky header with controls -->
-      <div class="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 p-2 shadow-lg">
+      <div class="sticky top-0 z-10 border-b border-gray-200 p-2">
         <div class="mb-3 flex items-center justify-between">
           <h2 class="text-xl font-semibold text-gray-900">
             {{ importing ? t('importing') : t('reviewLocations') }}
@@ -699,83 +593,89 @@ async function sendEntityToEntu (baseProperties) {
             text
             type="primary"
             :disabled="buttonLock"
-            @click="goBackToUploadProtected"
+            @click="goBackToUpload"
           >
             {{ t('backToUpload') }}
           </n-button>
-          <n-button
-            v-else
-            text
-            type="primary"
-            @click="togglePauseProtected"
+        </div>
+
+        <div class="mb-2 flex items-center justify-between">
+          <!-- Show found locations count when not importing -->
+          <p
+            v-if="!importing"
+            class="text-sm text-gray-600"
           >
-            {{ paused ? t('resumeImport') : t('pauseImport') }}
-          </n-button>
-        </div>
-
-        <!-- Success message if items were imported -->
-        <div
-          v-if="importResults.success.length > 0"
-          class="mb-3 rounded-md border border-green-200 bg-green-50 px-3 py-2"
-        >
-          <p class="text-sm font-medium text-green-800">
-            {{ t('successfullyImported', importResults.success.length) }}
-          </p>
-        </div>
-
-        <div
-          v-if="!importing"
-          class="mb-2 flex items-center justify-between"
-        >
-          <p class="text-sm text-gray-600">
             {{ t('foundLocations', locations.length) }}
           </p>
-          <div class="flex gap-2">
+
+          <!-- Show import progress when importing and not paused -->
+          <p
+            v-else-if="importing && !paused"
+            class="text-sm text-gray-600"
+          >
+            {{ t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage }) }}
+          </p>
+
+          <!-- Show paused status when importing and paused -->
+          <p
+            v-else-if="importing && paused"
+            class="text-sm text-gray-600"
+          >
+            {{ t('importPaused', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage }) }}
+          </p>
+          <div class="flex items-center gap-2">
             <n-button
-              text
-              type="primary"
-              size="small"
-              :disabled="buttonLock"
-              @click="selectAllProtected"
-            >
-              {{ t('selectAll') }}
-            </n-button>
-            <n-button
-              text
-              type="primary"
-              size="small"
-              :disabled="buttonLock"
-              @click="selectNoneProtected"
-            >
-              {{ t('selectNone') }}
-            </n-button>
-            <n-button
+              v-if="!importing"
               :disabled="!hasSelectedLocations || buttonLock"
               type="primary"
               size="small"
-              @click="importSelectedProtected"
+              @click="importSelected"
             >
               {{ t('importSelected', selectedCount) }}
             </n-button>
+            <n-button
+              v-else
+              type="primary"
+              size="small"
+              @click="togglePauseProtected"
+            >
+              {{ paused ? t('resumeImport') : t('pauseImport') }}
+            </n-button>
           </div>
+        </div>
+
+        <!-- Master checkbox for select all/none -->
+        <div
+          v-if="!importing && locations.length > 0"
+          class="mb-2 ml-1"
+        >
+          <n-checkbox
+            :checked="masterCheckboxState.checked"
+            :indeterminate="masterCheckboxState.indeterminate"
+            class="mt-1"
+            size="small"
+            @update:checked="handleMasterCheckboxChange"
+          >
+            <span class="ml-3 text-sm text-gray-600">
+              {{ t('selectAll') }}
+            </span>
+          </n-checkbox>
         </div>
 
         <!-- Progress bar (visible only during import) -->
         <div
           v-if="importing"
-          class="mb-2"
+          class="mb-2 ml-1 inline-flex items-start"
         >
-          <div class="h-2 w-full rounded-full bg-gray-200">
-            <div
-              class="h-2 rounded-full bg-green-600 transition-all duration-300 ease-in-out"
-              :style="{ width: importProgress.percentage + '%' }"
+          <div class="mt-1 w-80">
+            <n-progress
+              type="line"
+              :percentage="importProgress.percentage"
+              :height="16"
+              :border-radius="8"
+              :show-indicator="false"
+              status="success"
             />
-          </div>
-          <div class="mt-1 text-center text-xs text-gray-500">
-            {{ paused
-              ? t('importPaused', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
-              : t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage })
-            }}
           </div>
         </div>
 
@@ -811,20 +711,15 @@ async function sendEntityToEntu (baseProperties) {
 
       <!-- Scrollable locations container -->
       <div class="flex-1 overflow-y-auto pt-3">
-        <div
-          class="rounded-md border border-gray-200"
-        >
+        <div>
           <div
-            v-for="(location, index) in locations"
-            :key="index"
-            :ref="el => locationRefs[index] = el"
+            v-for="location in locations"
+            :key="`${location.coordinates[0]}-${location.coordinates[1]}-${location.name}`"
             class="flex items-start border-b border-gray-100 p-3 transition-all duration-500 ease-in-out last:border-b-0"
-            :class="[
-              location.imported ? 'bg-green-50' : '',
-              location.imported ? 'border-green-100' : '',
-              location.imported ? 'cursor-default' : importing ? 'cursor-default' : 'cursor-pointer hover:bg-gray-50',
-            ]"
-            @click="!location.imported && !importing && (location.selected = !location.selected)"
+            :class="{
+              'bg-green-50': location.imported,
+              'border-green-100': location.imported,
+            }"
           >
             <!-- Show check box for non-imported locations -->
             <n-checkbox
@@ -833,7 +728,6 @@ async function sendEntityToEntu (baseProperties) {
               class="mt-1 transition-opacity duration-1000"
               :class="importing ? 'opacity-0 pointer-events-none' : 'opacity-100'"
               size="small"
-              @click.stop
             />
 
             <!-- Show marker icon for imported locations -->
@@ -857,38 +751,33 @@ async function sendEntityToEntu (baseProperties) {
                 >
                   {{ location.name || t('unnamedLocation') }}
                 </a>
-                <span v-else>
+                <span
+                  v-else
+                  class="cursor-pointer hover:text-blue-600"
+                  @click="!importing && (location.selected = !location.selected)"
+                >
                   {{ location.name || t('unnamedLocation') }}
                 </span>
                 <span class="ml-1 text-sm text-gray-500">
-                  {{ location.coordinates[1].toFixed(6) }}, {{ location.coordinates[0].toFixed(6) }}
+                  {{ location.coordinates[1].toFixed(COORDINATE_VALIDATION.COORDINATE_PRECISION) }}, {{ location.coordinates[0].toFixed(COORDINATE_VALIDATION.COORDINATE_PRECISION) }}
                 </span>
-                <span
-                  class="ml-1 text-xs text-green-600 transition-all duration-500 ease-in-out"
-                  :style="{ opacity: location.imported ? 1 : 0, maxHeight: location.imported ? '20px' : '0px' }"
-                >({{ t('imported') }})</span>
               </p>
-
-              <!-- Coordinates label - smoothly disappears when imported -->
-              <div
-                class="overflow-hidden transition-all duration-500 ease-in-out"
-                :style="{ opacity: location.imported ? 0 : 1, maxHeight: location.imported ? '0px' : '24px' }"
-              >
-                <p class="text-sm text-gray-500">
-                  {{ t('coordinates') }}: {{ location.coordinates[1].toFixed(6) }},
-                  {{ location.coordinates[0].toFixed(6) }}
-                </p>
-              </div>
 
               <!-- Description - smoothly collapses when imported -->
               <div
                 v-if="location.description"
                 class="overflow-hidden transition-all duration-500 ease-in-out"
-                :style="{ maxHeight: location.imported ? '0px' : '200px', opacity: location.imported ? 0 : 1 }"
+                :class="location.imported ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'"
               >
-                <p class="mt-1 text-sm text-gray-600">
-                  {{ location.description }}
-                </p>
+                <div>
+                  <!-- v-html safe: content sanitized through HTML→Markdown→HTML pipeline -->
+                  <!-- eslint-disable vue/no-v-html -->
+                  <div
+                    class="prose prose-sm mt-1 max-w-none overflow-y-auto text-gray-600 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>p]:my-2 [&_a]:break-words [&_a]:text-blue-600 [&_a]:underline hover:[&_a]:text-blue-800 [&_img]:h-auto [&_img]:max-w-full"
+                    :style="{ maxHeight: `${CONTENT_LIMITS.MAX_DESCRIPTION_HEIGHT}px` }"
+                    v-html="location.htmlDescription"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -925,61 +814,49 @@ async function sendEntityToEntu (baseProperties) {
 
 <i18n lang="yaml">
 en:
-  errorNoAccount: "No account parameter!"
-  errorNoType: "No type parameter!"
-  errorNoToken: "No token parameter!"
-  errorInvalidFile: "Please select a KML or XML file"
-  errorSelectFile: "Please select a file"
-  errorSelectOneLocation: "Please select at least one location to import"
-  uploadText: "Click or drag a KML file to this area to upload."
-  reviewLocations: "Review Locations"
-  backToUpload: "Back to File Selection"
-  foundLocations: "Found {n} location(s). Select which ones to import:"
-  selectAll: "Select All"
-  selectNone: "Select None"
-  unnamedLocation: "Unnamed Location"
-  coordinates: "Coordinates"
-  importSelected: "Import | Import {n} Selected Location | Import {n} Selected Locations"
-  importingProgress: "Importing... {current}/{total} ({percentage}%)"
-  importPaused: "Paused... {current}/{total} ({percentage}%)"
-  importing: "Importing..."
-  pauseImport: "Pause"
-  resumeImport: "Resume"
-  importResults: "Import Results"
-  successfullyImported: "Successfully Imported ({n})"
-  importErrors: "Import Errors ({n})"
-  importStopped: "Import Stopped"
-  importStoppedMessage: "Import was stopped after the first error occurred. {skipped} location(s) were not processed."
-  retryFailedImport: "Retry Failed Import"
-  error: "Error"
-  imported: "Imported"
+  errorNoAccount: No account parameter!
+  errorNoType: No type parameter!
+  errorNoToken: No token parameter!
+  errorInvalidFile: Please select a KML or XML file
+  errorSelectFile: Please select a file
+  errorSelectOneLocation: Please select at least one location to import
+  uploadText: Click or drag a KML file to this area to upload.
+  reviewLocations: Review Locations
+  backToUpload: Back to File Selection
+  foundLocations: Found {n} location(s). Select which ones to import
+  selectAll: Select all
+  unnamedLocation: Unnamed Location
+  importSelected: Import | Import the Selected Location | Import {n} Selected Locations
+  importingProgress: Importing... {current}/{total} ({percentage}%)
+  importPaused: Paused... {current}/{total} ({percentage}%)
+  importing: Importing...
+  pauseImport: Pause
+  resumeImport: Resume
+  importErrors: Import Error | Import Error | Import Errors ({n})
+  importStopped: Import Stopped
+  importStoppedMessage: Import was stopped after the first error occurred. No locations were not processed. | Import was stopped after the first error occurred. The remaining single location was not processed. | Import was stopped after the first error occurred. {skipped} locations were not processed.
+  error: Error
 et:
-  errorNoAccount: "Puudub 'account' parameeter!"
-  errorNoType: "Puudub 'type' parameeter!"
-  errorNoToken: "Puudub 'token' parameeter!"
-  errorInvalidFile: "Palun valige KML või XML fail"
-  errorSelectFile: "Palun valige fail"
-  errorSelectOneLocation: "Palun valige vähemalt üks asukoht importimiseks"
-  uploadText: "Lohista KML fail siia või klõpsa siin, et fail valida."
-  reviewLocations: "Asukohtade ülevaade"
-  backToUpload: "Tagasi faili valikusse"
-  foundLocations: "Leitud {n} asukoht(a). Valige, millised importida:"
-  selectAll: "Vali kõik"
-  selectNone: "Tühista valik"
-  unnamedLocation: "Nimetu asukoht"
-  coordinates: "Koordinaadid"
-  importSelected: "Impordi | Impordi {n} valitud asukoht | Impordi {n} valitud asukohta"
-  importingProgress: "Importimine... {current}/{total} ({percentage}%)"
-  importPaused: "Peatatud... {current}/{total} ({percentage}%)"
-  importing: "Importimine..."
-  pauseImport: "Peata"
-  resumeImport: "Jätka"
-  importResults: "Importimise tulemused"
-  successfullyImported: "Edukalt imporditud ({n})"
-  importErrors: "Importimise vead ({n})"
-  importStopped: "Importimine peatatud"
-  importStoppedMessage: "Importimine peatati pärast esimest viga. {skipped} asukoht(a) jäi töötlemata."
-  retryFailedImport: "Proovi ebaõnnestunud importi uuesti"
-  error: "Viga"
-  imported: "Imporditud"
+  errorNoAccount: Puudub 'account' parameeter!
+  errorNoType: Puudub 'type' parameeter!
+  errorNoToken: Puudub 'token' parameeter!
+  errorInvalidFile: Palun valige KML või XML fail
+  errorSelectFile: Palun valige fail
+  errorSelectOneLocation: Palun valige vähemalt üks asukoht importimiseks
+  uploadText: Lohista KML fail siia või klõpsa siin, et fail valida.
+  reviewLocations: Asukohtade ülevaade
+  backToUpload: Tagasi faili valikusse
+  foundLocations: Leitud {n} asukoht(a). Valige, millised importida
+  selectAll: Vali kõik
+  unnamedLocation: Nimetu asukoht
+  importSelected: Impordi | Impordi valitud asukoht | Impordi {n} valitud asukohta
+  importingProgress: Importimine... {current}/{total} ({percentage}%)
+  importPaused: Peatatud... {current}/{total} ({percentage}%)
+  importing: Importimine...
+  pauseImport: Peata
+  resumeImport: Jätka
+  importErrors: Importimise viga | Importimise viga | Importimise vead ({n})
+  importStopped: Importimine peatatud
+  importStoppedMessage: Importimine peatati pärast esimest viga. Ühtegi asukohta ei jäänud töötlemata. | Importimine peatati pärast esimest viga. Üks asukoht jäi töötlemata. | Importimine peatati pärast esimest viga. {skipped} asukohta jäi töötlemata.
+  error: Viga
 </i18n>
