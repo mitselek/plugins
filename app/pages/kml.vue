@@ -445,10 +445,9 @@ async function importSelected () {
         )
       }
       catch (err) {
-        const errorMessage = err.message || 'Unknown error occurred'
         importResults.value.errors.push({
           name: location.name,
-          error: errorMessage
+          error: err.message
         })
 
         importResults.value.stopped = true
