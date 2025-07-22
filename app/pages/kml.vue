@@ -667,8 +667,7 @@ async function sendEntityToEntu (baseProperties) {
         <!-- Master checkbox for select all/none -->
         <div
           v-if="!importing && locations.length > 0"
-          class="mb-2 ml-1 inline-flex cursor-pointer items-start"
-          @click="handleMasterCheckboxChange(!masterCheckboxState.checked)"
+          class="mb-2 ml-1"
         >
           <n-checkbox
             :checked="masterCheckboxState.checked"
@@ -676,11 +675,11 @@ async function sendEntityToEntu (baseProperties) {
             class="mt-1"
             size="small"
             @update:checked="handleMasterCheckboxChange"
-            @click.stop
-          />
-          <span class="ml-3 text-sm text-gray-600">
-            {{ t('selectAll') }}
-          </span>
+          >
+            <span class="ml-3 text-sm text-gray-600">
+              {{ t('selectAll') }}
+            </span>
+          </n-checkbox>
         </div>
 
         <!-- Progress bar (visible only during import) -->
