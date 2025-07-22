@@ -750,7 +750,6 @@ async function sendEntityToEntu (baseProperties) {
               class="mt-1 transition-opacity duration-1000"
               :class="importing ? 'opacity-0 pointer-events-none' : 'opacity-100'"
               size="small"
-              @click.stop
             />
 
             <!-- Show marker icon for imported locations -->
