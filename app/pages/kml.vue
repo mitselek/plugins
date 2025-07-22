@@ -199,15 +199,6 @@ function kmlUpload (data) {
   }
 }
 
-function handleFileChange (data) {
-  const file = data.fileList?.[0]?.file
-  if (file) {
-    selectedFile.value = file
-    error.value = ''
-    parseKML()
-  }
-}
-
 function handleDrop (event) {
   const file = event.dataTransfer.files?.[0]
 
@@ -567,7 +558,6 @@ async function sendEntityToEntu (baseProperties) {
         accept=".kml,.xml"
         :multiple="false"
         :directory="false"
-        @change="handleFileChange"
       >
         <n-upload-dragger
           class="flex h-96 flex-col items-center justify-center gap-2 rounded-none"
