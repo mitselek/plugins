@@ -199,19 +199,6 @@ function kmlUpload (data) {
   }
 }
 
-function handleDrop (event) {
-  const file = event.dataTransfer.files?.[0]
-
-  if (file && (file.name.toLowerCase().endsWith('.kml') || file.name.toLowerCase().endsWith('.xml'))) {
-    selectedFile.value = file
-    error.value = ''
-    parseKML()
-  }
-  else {
-    error.value = t('errorInvalidFile')
-  }
-}
-
 function readFileAsText (file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -556,14 +543,11 @@ async function sendEntityToEntu (baseProperties) {
         :custom-request="kmlUpload"
         :show-file-list="false"
         accept=".kml,.xml"
-        :multiple="false"
-        :directory="false"
       >
         <n-upload-dragger
           class="flex h-96 flex-col items-center justify-center gap-2 rounded-none"
           @dragover.prevent
           @dragenter.prevent
-          @drop.prevent="handleDrop"
         >
           {{ t('uploadText') }}
         </n-upload-dragger>
@@ -571,7 +555,7 @@ async function sendEntityToEntu (baseProperties) {
 
       <div
         v-if="parsing"
-        class="flex h-48 items-center justify-center"
+        class="flex h-96 items-center justify-center"
       >
         <n-spin show />
       </div>
