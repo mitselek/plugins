@@ -498,7 +498,7 @@ function buildEntityProperties (entityData) {
     const processedDescription = processDescription(entityData.properties.description)
     baseProperties.push({
       type: 'kirjeldus',
-      text: processedDescription
+      string: processedDescription
     })
   }
 
