@@ -121,9 +121,6 @@ function convertToMarkdown (description) {
   return markdown
 }
 
-/**
- * Converts markdown text to HTML for safe display
- */
 function convertMarkdownToHtml (markdown) {
   if (!markdown) return ''
 
@@ -136,6 +133,9 @@ function convertMarkdownToHtml (markdown) {
     })
 
     let html = marked(markdown)
+
+    // Remove paragraphs that contain only images to prevent CORS errors
+    html = html.replace(/<p>\s*<img[^>]*>\s*<\/p>/gi, '')
 
     html = html.replace(
       /<a\s+href="([^"]+)"[^>]*>/g,
