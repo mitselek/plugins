@@ -102,6 +102,11 @@ onMounted(async () => {
     error.value = t('errorNoType')
     return
   }
+
+  if (!query.parent) {
+    error.value = t('errorNoParent')
+    return
+  }
 })
 
 function convertToMarkdown (description) {
@@ -799,6 +804,7 @@ en:
   errorNoAccount: No account parameter!
   errorNoType: No type parameter!
   errorNoToken: No token parameter!
+  errorNoParent: No parent parameter!
   errorInvalidFile: Please select a KML or XML file
   errorSelectFile: Please select a file
   errorSelectOneLocation: Please select at least one location to import
@@ -822,6 +828,7 @@ et:
   errorNoAccount: Puudub 'account' parameeter!
   errorNoType: Puudub 'type' parameeter!
   errorNoToken: Puudub 'token' parameeter!
+  errorNoParent: Puudub 'parent' parameeter!
   errorInvalidFile: Palun valige KML või XML fail
   errorSelectFile: Palun valige fail
   errorSelectOneLocation: Palun valige vähemalt üks asukoht importimiseks
