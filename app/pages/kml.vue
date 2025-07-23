@@ -546,8 +546,6 @@ async function sendEntityToEntu (baseProperties) {
       >
         <n-upload-dragger
           class="flex h-96 flex-col items-center justify-center gap-2 rounded-none"
-          @dragover.prevent
-          @dragenter.prevent
         >
           {{ t('uploadText') }}
         </n-upload-dragger>
