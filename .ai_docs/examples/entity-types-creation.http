@@ -229,6 +229,25 @@ Content-Type: application/json
     {"type": "ordinal", "number": 6}
 ]
 
+### 2.7. Create "pildilingid" property for Asukoht entity type
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+    {"type": "_type", "reference": "{{propertyEntityDefinitionId}}"},
+    {"type": "_parent", "reference": "{{asukohtEntityDefinitionId}}"},
+    {"type": "name", "string": "pildilingid"},
+    {"type": "label", "string": "Pildilingid", "language": "et"},
+    {"type": "label", "string": "Photo url's", "language": "en"},
+    {"type": "type", "string": "string"},
+    {"type": "markdown", "boolean": true},
+    {"type": "public", "boolean": true},
+    {"type": "multilingual", "boolean": false},
+    {"type": "ordinal", "number": 7},
+    {"type": "list", "boolean": true}
+]
+
 ### Entity GET kaart id's
 GET https://{{host}}/api/{{account}}/entity?_type.string=kaart&props=_id&limit=10000 HTTP/1.1
 Accept-Encoding: deflate
