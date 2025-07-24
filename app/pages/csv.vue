@@ -268,6 +268,7 @@ onMounted(() => {
   >
     <n-upload
       v-if="!importing"
+      accept=".csv"
       :custom-request="csvUpload"
       :show-file-list="false"
     >
