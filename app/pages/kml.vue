@@ -823,19 +823,22 @@ en:
   errorSelectOneLocation: Please select at least one location to import
   uploadText: Click or drag a KML file to this area to upload.
   reviewLocations: Review Locations
+  importComplete: Import Complete
   backToUpload: Back to File Selection
-  foundLocations: Found {n} location(s). Select which ones to import
+  foundLocations: Found a location. Select it to import | Found {n} locations. Select which ones to import
+  successfullyImported: Successfully imported a location | Successfully imported {n} locations
   selectAll: Select all
   unnamedLocation: Unnamed Location
   importSelected: Import | Import the Selected Location | Import {n} Selected Locations
+  importAnotherFile: Import Another File
   importingProgress: Importing... {current}/{total} ({percentage}%)
   importPaused: Paused... {current}/{total} ({percentage}%)
   importing: Importing...
   pauseImport: Pause
   resumeImport: Resume
-  importErrors: Import Error | Import Error | Import Errors ({n})
+  importErrors: Import Error | Import Errors ({n})
   importStopped: Import Stopped
-  importStoppedMessage: Import was stopped after the first error occurred. No locations were not processed. | Import was stopped after the first error occurred. The remaining single location was not processed. | Import was stopped after the first error occurred. {skipped} locations were not processed.
+  importStoppedMessage: Import was stopped after the first error occurred. The remaining single location was not processed. | Import was stopped after the first error occurred. {skipped} locations were not processed.
   error: Error
 et:
   errorNoAccount: Puudub 'account' parameeter!
@@ -847,18 +850,21 @@ et:
   errorSelectOneLocation: Palun valige vähemalt üks asukoht importimiseks
   uploadText: Lohista KML fail siia või klõpsa siin, et fail valida.
   reviewLocations: Asukohtade ülevaade
+  importComplete: Import lõpetatud
   backToUpload: Tagasi faili valikusse
-  foundLocations: Leitud {n} asukoht(a). Valige, millised importida
+  foundLocations: Leitud üks asukoht. Valige see importimiseks | Leitud {n} asukohta. Valige, millised importida
+  successfullyImported: Üks asukoht imporditud | Edukalt imporditud {n} asukohta
   selectAll: Vali kõik
   unnamedLocation: Nimetu asukoht
   importSelected: Impordi | Impordi valitud asukoht | Impordi {n} valitud asukohta
+  importAnotherFile: Impordi teine fail
   importingProgress: Importimine... {current}/{total} ({percentage}%)
   importPaused: Peatatud... {current}/{total} ({percentage}%)
   importing: Importimine...
   pauseImport: Peata
   resumeImport: Jätka
-  importErrors: Importimise viga | Importimise viga | Importimise vead ({n})
+  importErrors: Importimise viga | Importimise vead ({n})
   importStopped: Importimine peatatud
-  importStoppedMessage: Importimine peatati pärast esimest viga. Ühtegi asukohta ei jäänud töötlemata. | Importimine peatati pärast esimest viga. Üks asukoht jäi töötlemata. | Importimine peatati pärast esimest viga. {skipped} asukohta jäi töötlemata.
+  importStoppedMessage: Importimine peatati pärast esimest viga. Üks asukoht jäi töötlemata. | Importimine peatati pärast esimest viga. {skipped} asukohta jäi töötlemata.
   error: Viga
 </i18n>
