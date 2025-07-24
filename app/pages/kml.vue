@@ -87,6 +87,13 @@ const masterCheckboxState = computed(() => {
   }
 })
 
+const importCompleteAndSuccessful = computed(() => {
+  return !importing.value
+    && importResults.value.success.length > 0
+    && importResults.value.errors.length === 0
+    && locations.value.every((location) => location.imported)
+})
+
 onMounted(async () => {
   if (!query.account) {
     error.value = t('errorNoAccount')
@@ -300,6 +307,23 @@ function goBackToUpload () {
   step.value = STEPS.UPLOAD
   error.value = ''
   selectedFile.value = null
+  locations.value = []
+
+  // Reset import results
+  importResults.value = {
+    success: [],
+    errors: [],
+    stopped: false,
+    skipped: 0
+  }
+
+  // Reset import progress
+  importProgress.value = {
+    current: 0,
+    total: 0,
+    percentage: 0,
+    pendingLocations: null
+  }
 
   setTimeout(() => {
     buttonLock.value = false
@@ -586,10 +610,10 @@ async function sendEntityToEntu (baseProperties) {
       <div class="sticky top-0 z-10 border-b border-gray-200 p-2">
         <div class="mb-3 flex items-center justify-between">
           <h2 class="text-xl font-semibold text-gray-900">
-            {{ importing ? t('importing') : t('reviewLocations') }}
+            {{ importing ? t('importing') : importCompleteAndSuccessful ? t('importComplete') : t('reviewLocations') }}
           </h2>
           <n-button
-            v-if="!importing"
+            v-if="!importing && !importCompleteAndSuccessful"
             text
             type="primary"
             :disabled="buttonLock"
@@ -600,15 +624,20 @@ async function sendEntityToEntu (baseProperties) {
         </div>
 
         <div class="mb-2 flex items-center justify-between">
-          <!-- Show found locations count when not importing -->
           <p
-            v-if="!importing"
+            v-if="importCompleteAndSuccessful"
+            class="text-sm text-green-600"
+          >
+            {{ t('successfullyImported', importResults.success.length) }}
+          </p>
+
+          <p
+            v-else-if="!importing"
             class="text-sm text-gray-600"
           >
             {{ t('foundLocations', locations.length) }}
           </p>
 
-          <!-- Show import progress when importing and not paused -->
           <p
             v-else-if="importing && !paused"
             class="text-sm text-gray-600"
@@ -616,16 +645,26 @@ async function sendEntityToEntu (baseProperties) {
             {{ t('importingProgress', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage }) }}
           </p>
 
-          <!-- Show paused status when importing and paused -->
           <p
             v-else-if="importing && paused"
             class="text-sm text-gray-600"
           >
             {{ t('importPaused', { current: importProgress.current, total: importProgress.total, percentage: importProgress.percentage }) }}
           </p>
+
           <div class="flex items-center gap-2">
             <n-button
-              v-if="!importing"
+              v-if="importCompleteAndSuccessful"
+              type="primary"
+              size="small"
+              :disabled="buttonLock"
+              @click="goBackToUpload"
+            >
+              {{ t('importAnotherFile') }}
+            </n-button>
+
+            <n-button
+              v-else-if="!importing"
               :disabled="!hasSelectedLocations || buttonLock"
               type="primary"
               size="small"
@@ -633,6 +672,7 @@ async function sendEntityToEntu (baseProperties) {
             >
               {{ t('importSelected', selectedCount) }}
             </n-button>
+
             <n-button
               v-else
               type="primary"
@@ -644,9 +684,9 @@ async function sendEntityToEntu (baseProperties) {
           </div>
         </div>
 
-        <!-- Master checkbox for select all/none -->
+        <!-- Master checkbox -->
         <div
-          v-if="!importing && locations.length > 0"
+          v-if="!importing && !importCompleteAndSuccessful && locations.length > 0"
           class="mb-2 ml-1"
         >
           <n-checkbox
@@ -662,7 +702,7 @@ async function sendEntityToEntu (baseProperties) {
           </n-checkbox>
         </div>
 
-        <!-- Progress bar (visible only during import) -->
+        <!-- Progress bar -->
         <div
           v-if="importing"
           class="mb-2 ml-1 inline-flex items-start"
@@ -679,7 +719,7 @@ async function sendEntityToEntu (baseProperties) {
           </div>
         </div>
 
-        <!-- Error messages if any -->
+        <!-- Error messages -->
         <div
           v-if="importResults.errors.length > 0"
           class="mb-2 rounded-md border border-red-200 bg-red-50 p-2"
@@ -697,7 +737,6 @@ async function sendEntityToEntu (baseProperties) {
             </li>
           </ul>
 
-          <!-- Warning if import was stopped -->
           <div
             v-if="importResults.stopped"
             class="mt-2"
@@ -709,7 +748,7 @@ async function sendEntityToEntu (baseProperties) {
         </div>
       </div>
 
-      <!-- Scrollable locations container -->
+      <!-- Locations list -->
       <div class="flex-1 overflow-y-auto pt-3">
         <div>
           <div
@@ -721,7 +760,6 @@ async function sendEntityToEntu (baseProperties) {
               'border-green-100': location.imported,
             }"
           >
-            <!-- Show check box for non-imported locations -->
             <n-checkbox
               v-if="!location.imported"
               v-model:checked="location.selected"
@@ -730,7 +768,6 @@ async function sendEntityToEntu (baseProperties) {
               size="small"
             />
 
-            <!-- Show marker icon for imported locations -->
             <div
               v-else
               class="mt-0.5 flex size-5 items-center justify-center text-green-600"
@@ -741,7 +778,6 @@ async function sendEntityToEntu (baseProperties) {
               />
             </div>
             <div class="ml-3 min-w-0 flex-1 transition-all duration-500 ease-in-out">
-              <!-- Location name - always shown but changes link/color when imported -->
               <p class="text-sm font-medium text-gray-900">
                 <a
                   v-if="location.imported"
@@ -763,7 +799,6 @@ async function sendEntityToEntu (baseProperties) {
                 </span>
               </p>
 
-              <!-- Description - smoothly collapses when imported -->
               <div
                 v-if="location.description"
                 class="overflow-hidden transition-all duration-500 ease-in-out"
@@ -784,8 +819,6 @@ async function sendEntityToEntu (baseProperties) {
         </div>
       </div>
     </div>
-
-    <!-- Results are now integrated into the review screen -->
 
     <!-- Error Display -->
     <div
@@ -818,7 +851,6 @@ en:
   errorNoType: No type parameter!
   errorNoToken: No token parameter!
   errorNoParent: No parent parameter!
-  errorInvalidFile: Please select a KML or XML file
   errorSelectFile: Please select a file
   errorSelectOneLocation: Please select at least one location to import
   uploadText: Click or drag a KML file to this area to upload.
@@ -845,7 +877,6 @@ et:
   errorNoType: Puudub 'type' parameeter!
   errorNoToken: Puudub 'token' parameeter!
   errorNoParent: Puudub 'parent' parameeter!
-  errorInvalidFile: Palun valige KML või XML fail
   errorSelectFile: Palun valige fail
   errorSelectOneLocation: Palun valige vähemalt üks asukoht importimiseks
   uploadText: Lohista KML fail siia või klõpsa siin, et fail valida.
