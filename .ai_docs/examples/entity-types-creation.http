@@ -177,6 +177,7 @@ Content-Type: application/json
     {"type": "label", "string": "Longitude", "language": "en"},
     {"type": "type", "string": "number"},
     {"type": "public", "boolean": true},
+    {"type": "decimals", "number": 7}
     {"type": "ordinal", "number": 3}
 ]
 
@@ -193,6 +194,7 @@ Content-Type: application/json
     {"type": "label", "string": "Latitude", "language": "en"},
     {"type": "type", "string": "number"},
     {"type": "public", "boolean": true},
+    {"type": "decimals", "number": 7}
     {"type": "ordinal", "number": 4}
 ]
 
