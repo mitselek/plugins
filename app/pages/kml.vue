@@ -110,15 +110,16 @@ onMounted(async () => {
 })
 
 function convertToMarkdown (description) {
-  if (!description) return ''
+  if (!description) return { markdown: '', imageUrls: [] }
 
-  const turndownService = createTurndownService()
+  const imageUrls = []
+  const turndownService = createTurndownService(imageUrls)
   let markdown = turndownService.turndown(description)
 
-  markdown = cleanupMarkdown(markdown)
+  markdown = markdown.replace(/\n{3,}/g, '\n\n')
   markdown = convertUrlsToMarkdownLinks(markdown)
 
-  return markdown
+  return { markdown, imageUrls }
 }
 
 function convertMarkdownToHtml (markdown) {
@@ -134,9 +135,6 @@ function convertMarkdownToHtml (markdown) {
 
     let html = marked(markdown)
 
-    // Remove paragraphs that contain only images to prevent CORS errors
-    html = html.replace(/<p>\s*<img[^>]*>\s*<\/p>/gi, '')
-
     html = html.replace(
       /<a\s+href="([^"]+)"[^>]*>/g,
       '<a href="$1" target="_blank" rel="noopener noreferrer">'
@@ -150,7 +148,7 @@ function convertMarkdownToHtml (markdown) {
   }
 }
 
-function createTurndownService () {
+function createTurndownService (imageUrls = []) {
   const turndownService = new TurndownService({
     headingStyle: 'atx',
     codeBlockStyle: 'fenced',
@@ -169,17 +167,15 @@ function createTurndownService () {
   turndownService.addRule('images', {
     filter: 'img',
     replacement: function (content, node) {
-      const alt = node.getAttribute('alt') || 'Location Image'
-      const src = node.getAttribute('src') || ''
-      return '\n\n![' + alt + '](' + src + ')\n\n'
+      const src = node.getAttribute('src')
+      if (src) {
+        imageUrls.push(src)
+      }
+      return ''
     }
   })
 
   return turndownService
-}
-
-function cleanupMarkdown (markdown) {
-  return markdown.replace(/\n{3,}/g, '\n\n')
 }
 
 function convertUrlsToMarkdownLinks (markdown) {
@@ -256,13 +252,16 @@ async function parseKML () {
       if (isNaN(longitude) || isNaN(latitude)) continue
 
       const name = placemark.querySelector('name')?.textContent?.trim() || ''
-      const description = placemark.querySelector('description')?.textContent?.trim() || ''
+      const rawDescription = placemark.querySelector('description')?.textContent?.trim() || ''
 
-      const markdownDescription = convertToMarkdown(description)
+      const conversionResult = convertToMarkdown(rawDescription)
+      const { markdown: description, imageUrls } = conversionResult
+
       const location = {
         name,
-        description: markdownDescription,
-        htmlDescription: markdownDescription ? convertMarkdownToHtml(markdownDescription) : '',
+        description,
+        htmlDescription: convertMarkdownToHtml(description),
+        imageUrls,
         coordinates: [longitude, latitude],
         selected: true,
         imported: false,
@@ -403,6 +402,10 @@ async function importSelected () {
           entityData.properties.description = location.description
         }
 
+        if (location.imageUrls?.length > 0) {
+          entityData.properties.imageUrls = location.imageUrls
+        }
+
         const entityId = await createEntity(entityData)
 
         location.imported = true
@@ -502,6 +505,15 @@ function buildEntityProperties (entityData) {
     })
   }
 
+  if (entityData.properties.imageUrls) {
+    entityData.properties.imageUrls.forEach((url) => {
+      baseProperties.push({
+        type: 'pildilingid',
+        string: url
+      })
+    })
+  }
+
   return baseProperties
 }
 
@@ -513,8 +525,9 @@ function processDescription (description) {
 }
 
 async function sendEntityToEntu (baseProperties) {
+  const url = `${runtimeConfig.public.entuUrl}/api/${query.account}/entity`
   return await $fetch(
-    `${runtimeConfig.public.entuUrl}/api/${query.account}/entity`,
+    url,
     {
       method: 'POST',
       headers: {

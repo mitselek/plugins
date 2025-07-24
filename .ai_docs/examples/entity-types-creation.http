@@ -69,7 +69,7 @@ Content-Type: application/json
 ]
 
 ###
-@asukohtEntityDefinitionId = 686914211749f351b9c82f28
+@asukohtEntityDefinitionId = 687d27c9259fc48ba59cf726
 
 # B. Create property types
 
@@ -241,7 +241,7 @@ Content-Type: application/json
     {"type": "label", "string": "Pildilingid", "language": "et"},
     {"type": "label", "string": "Photo url's", "language": "en"},
     {"type": "type", "string": "string"},
-    {"type": "markdown", "boolean": true},
+    {"type": "markdown", "boolean": false},
     {"type": "public", "boolean": true},
     {"type": "multilingual", "boolean": false},
     {"type": "ordinal", "number": 7},
@@ -259,7 +259,7 @@ Accept-Encoding: deflate
 Authorization: Bearer {{esm_token}}
 
 ### Define kaart entity id
-@kaartEId = 686938681749f351b9c830c8
+@kaartEId = 687d2ff5259fc48ba59cf7db
 
 ### Create asukoht under kaart
 POST https://{{host}}/api/{{account}}/entity
@@ -288,3 +288,17 @@ Accept-Encoding: deflate
 Authorization: Bearer {{esm_token}}
 Content-Type: application/json; charset=utf-8
 
+
+### Mock request for test - KML import simulation
+POST https://{{host}}/api/{{account}}/entity
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+[
+  { "type": "_type", "reference": "{{asukohtEntityDefinitionId}}" },
+  { "type": "_parent", "reference": "{{kaartEId}}" },
+  { "type": "name", "string": "Test Location from KML" },
+  { "type": "lat", "number": 59.369562 },
+  { "type": "long", "number": 24.4150913 },
+  { "type": "kirjeldus", "string": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+]
