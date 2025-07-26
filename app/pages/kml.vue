@@ -10,7 +10,7 @@ import TurndownService from 'turndown'
 import { marked } from 'marked'
 import { NUpload, NUploadDragger, NSpin, NCheckbox, NButton, NProgress } from 'naive-ui'
 
-const { t } = useI18n()
+const { locale, t } = useI18n()
 const runtimeConfig = useRuntimeConfig()
 const { query } = useRoute()
 
@@ -95,6 +95,10 @@ const importCompleteAndSuccessful = computed(() => {
 })
 
 onMounted(async () => {
+  if (query.locale) {
+    locale.value = query.locale
+  }
+
   if (!query.account) {
     error.value = t('errorNoAccount')
     return
