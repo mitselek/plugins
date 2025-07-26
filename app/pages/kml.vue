@@ -113,11 +113,6 @@ onMounted(async () => {
     error.value = t('errorNoType')
     return
   }
-
-  if (!query.parent) {
-    error.value = t('errorNoParent')
-    return
-  }
 })
 
 function convertToMarkdown (description) {
